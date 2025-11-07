@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react"
 import { ChevronLeft, Download } from "lucide-react"
-import { mockFees, mockStudents } from "../../services/mockData"
+import { mockFees, mockStudents } from "../../services/studentMockData"
 
 interface FeeDetailPageProps {
   feeId: string
@@ -23,7 +23,7 @@ const FeeDetailPage: React.FC<FeeDetailPageProps> = ({ feeId, onBack }) => {
       year: 12,
     }[duration]
 
-    return fee?.monthlyBreakdown?.slice(0, monthCount) || []
+    return fee?.monthlyBreakup?.slice(0, monthCount) || fee?.monthlyBreakdown?.slice(0, monthCount) || []
   }, [fee, duration])
 
   if (!fee || !student) {

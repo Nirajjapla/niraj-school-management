@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useMemo } from "react"
 import { Search, DollarSign, Eye, Mail, ChevronLeft, ChevronRight } from "lucide-react"
-import { mockFees, mockStudents, type Fee } from "../../services/mockData"
+import { mockFees, mockStudents, type Fee } from "../../services/studentMockData"
 import PaymentModal from "./payment-modal"
 
 interface FeeListProps {

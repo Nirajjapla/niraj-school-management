@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { X, Download } from "lucide-react"
-import type { Fee } from "../../services/mockData"
+import type { Fee } from "../../services/studentMockData"
 
 interface PaymentModalProps {
   fee: Fee
@@ -108,21 +108,18 @@ Thank you for your payment!
 
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-4 mb-6">
-            <div>
+          <div className="flex">
+            <div className="w-1/2">
               <p className="text-sm text-gray-600">Student</p>
               <p className="font-medium text-gray-900">{studentName}</p>
             </div>
 
-            <div>
+            <div className="w-1/2">
               <p className="text-sm text-gray-600">Class - Section</p>
               <p className="font-medium text-gray-900">
                 {fee.class} - {fee.section}
               </p>
             </div>
-
-            <div>
-              <p className="text-sm text-gray-600">Fee Type</p>
-              <p className="font-medium text-gray-900 capitalize">{fee.feeType}</p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -130,10 +127,10 @@ Thank you for your payment!
               <p className="text-xl font-bold text-blue-600">${fee.totalAmount.toLocaleString()}</p>
             </div>
 
-            <div>
+            {/* <div>
               <p className="text-sm text-gray-600">Already Paid Amount</p>
               <p className="font-medium text-green-600">${fee.paidAmount.toLocaleString()}</p>
-            </div>
+            </div> */}
 
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
               <p className="text-sm text-gray-600">Remaining Amount</p>
