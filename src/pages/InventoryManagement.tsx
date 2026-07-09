@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { mockInventory } from '../services/mockData';
 
 const InventoryManagement: React.FC = () => {

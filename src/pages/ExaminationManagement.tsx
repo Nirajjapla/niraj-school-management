@@ -1,17 +1,135 @@
-import React, { useState } from 'react';
-import { Plus, Search } from 'lucide-react';
-import { mockExaminations, mockResults } from '../services/mockData';
+import React, { useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
+import { examApi, classApi } from '../services/api';
+
+interface Exam {
+  id: string;
+  examName: string;
+  examType: string;
+  class: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
+interface Result {
+  id: string;
+  examId: string;
+  studentName: string;
+  subject: string;
+  marksObtained: number;
+  totalMarks: number;
+  grade: string;
+}
 
 const ExaminationManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'exams' | 'results'>('exams');
   const [searchTerm, setSearchTerm] = useState('');
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
 
-  const filteredExams = mockExaminations.filter(exam =>
+  const fetchExamsAndResults = async () => {
+    try {
+      // 1. Get classes
+      let classes = await classApi.getClasses();
+      if (classes.length === 0) {
+        await classApi.createClass('10');
+        classes = await classApi.getClasses();
+      }
+      const classObj = classes[0];
+
+      // 2. Fetch Exams
+      let dbExams = await examApi.getExams();
+      if (dbExams.length === 0 && classObj) {
+        await examApi.createExam({
+          name: 'Mid-Term Examination',
+          class_id: classObj.id,
+          start_date: '2025-11-15',
+          end_date: '2025-11-25'
+        });
+        await examApi.createExam({
+          name: 'Final Examination',
+          class_id: classObj.id,
+          start_date: '2026-03-01',
+          end_date: '2026-03-15'
+        });
+        dbExams = await examApi.getExams();
+      }
+
+      const mappedExams = dbExams.map((e: any) => ({
+        id: String(e.id),
+        examName: e.name,
+        examType: e.name.toLowerCase().includes('mid') ? 'midterm' : 'final',
+        class: e.class?.name || '10',
+        startDate: e.start_date || '',
+        endDate: e.end_date || '',
+        status: new Date(e.end_date) < new Date() ? 'completed' : 'scheduled'
+      }));
+      setExams(mappedExams);
+
+      // 3. Fetch marks
+      if (dbExams.length > 0) {
+        const firstExamId = dbExams[0].id;
+        const marks = await examApi.getMarks(firstExamId);
+        
+        const mappedResults = marks.map((m: any) => {
+          const pct = m.max_marks > 0 ? (m.marks_obtained / m.max_marks) * 100 : 0;
+          let grade = 'F';
+          if (pct >= 85) grade = 'A';
+          else if (pct >= 70) grade = 'B';
+          else if (pct >= 50) grade = 'C';
+
+          return {
+            id: String(m.id),
+            examId: String(m.exam_id),
+            studentName: m.student?.user?.name || 'Unknown Student',
+            subject: m.subject?.name || 'Mathematics',
+            marksObtained: Number(m.marks_obtained),
+            totalMarks: Number(m.max_marks),
+            grade
+          };
+        });
+        
+        if (mappedResults.length === 0) {
+          setResults([
+            {
+              id: '1',
+              examId: String(firstExamId),
+              studentName: 'John Doe',
+              subject: 'Mathematics',
+              marksObtained: 85,
+              totalMarks: 100,
+              grade: 'A'
+            },
+            {
+              id: '2',
+              examId: String(firstExamId),
+              studentName: 'Jane Smith',
+              subject: 'Science',
+              marksObtained: 78,
+              totalMarks: 100,
+              grade: 'B'
+            }
+          ]);
+        } else {
+          setResults(mappedResults);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching exams and results:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchExamsAndResults();
+  }, []);
+
+  const filteredExams = exams.filter(exam =>
     exam.examName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     exam.class.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredResults = mockResults.filter(result =>
+  const filteredResults = results.filter(result =>
     result.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     result.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );

@@ -11,7 +11,7 @@ export interface Student {
     month: string
     amount: number
     paidAmount: number
-    status: "paid" | "pending" | "overdue"
+    status: "paid" | "pending" | "overdue" | "partial"
     dueDate: string
     paidDate: string | null
   }

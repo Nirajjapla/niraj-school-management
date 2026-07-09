@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, X } from 'lucide-react';
-import { mockTeachers as initialTeachers } from '../services/mockData';
+import { teacherApi } from '../services/api';
 
 interface Address {
   street: string;
@@ -36,7 +36,7 @@ const subjects = [
   'Art',
 ];
 
-const classData = {
+const classData: Record<string, string[]> = {
   "Class 1": ["A", "B", "C"],
   "Class 2": ["A", "B"],
   "Class 3": ["A", "B", "C", "D"],
@@ -45,7 +45,7 @@ const classData = {
 };
 
 const TeacherManagement: React.FC = () => {
-  const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers as any);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -69,6 +69,41 @@ const TeacherManagement: React.FC = () => {
     className: '',
     section: '',
   });
+
+  const fetchTeachers = async () => {
+    try {
+      const data = await teacherApi.getTeachers();
+      const mapped = data.map((t: any) => {
+        const nameParts = (t.user?.name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        return {
+          id: String(t.id),
+          teacherId: t.employee_code || '',
+          firstName,
+          lastName,
+          phone: '+1234567890',
+          subject: 'Mathematics',
+          qualification: t.qualification || '',
+          joiningDate: t.joining_date || '',
+          dob: '',
+          address: { street: '', city: '', state: '', zip: '' },
+          emergencyContact: '',
+          bloodGroup: '',
+          className: '',
+          section: ''
+        };
+      });
+      setTeachers(mapped);
+    } catch (err) {
+      console.error('Failed to fetch teachers:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeachers();
+  }, []);
 
   const filteredTeachers = teachers.filter((teacher) => {
     const matchesSearch =
@@ -111,32 +146,50 @@ const TeacherManagement: React.FC = () => {
     setShowViewModal(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this teacher?')) {
-      setTeachers(teachers.filter((t) => t.id !== id));
+      try {
+        await teacherApi.deleteTeacher(id);
+        fetchTeachers();
+      } catch (err: any) {
+        console.error(err);
+        alert(err.message || 'Failed to delete teacher');
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isEditing && currentTeacher) {
-      setTeachers(
-        teachers.map((t) =>
-          t.id === currentTeacher.id ? { ...currentTeacher, ...formData } : t
-        )
-      );
-    } else {
-      const newTeacher: Teacher = {
-        id: Date.now().toString(),
-        teacherId: `TCH${String(teachers.length + 1).padStart(3, '0')}`,
-        ...(formData as Teacher),
+    try {
+      const email = `${formData.firstName?.toLowerCase()}.${formData.lastName?.toLowerCase()}@school.com`;
+      const payload = {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email,
+        password: 'teacher123',
+        employee_code: formData.teacherId || `TCH${Date.now().toString().slice(-4)}`,
+        qualification: formData.qualification,
+        joining_date: formData.joiningDate || new Date().toISOString().split('T')[0]
       };
-      setTeachers([...teachers, newTeacher]);
-    }
 
-    setShowModal(false);
-    setCurrentTeacher(null);
+      if (isEditing && currentTeacher) {
+        await teacherApi.updateTeacher(currentTeacher.id, {
+          name: payload.name,
+          email,
+          qualification: payload.qualification,
+          joining_date: payload.joining_date
+        });
+      } else {
+        await teacherApi.createTeacher(payload);
+      }
+
+      setShowModal(false);
+      setCurrentTeacher(null);
+      fetchTeachers();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Operation failed');
+    }
   };
 
   return (
@@ -340,7 +393,7 @@ const TeacherManagement: React.FC = () => {
     >
       <option value="">Select Section</option>
       {formData.className &&
-        classData[formData.className]?.map((sec) => (
+        classData[formData.className]?.map((sec: string) => (
           <option key={sec} value={sec}>
             {sec}
           </option>

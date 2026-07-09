@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, X, Bus } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
 import { mockTransportation as initialTransport } from '../services/mockData';
 
 interface Transport {
@@ -67,8 +67,8 @@ const TransportManagement: React.FC = () => {
       setTransport(transport.map(t => t.id === currentTransport.id ? { ...currentTransport, ...formData } : t));
     } else {
       const newTransport: Transport = {
-        id: Date.now().toString(),
-        ...formData as Transport
+        ...formData as Transport,
+        id: Date.now().toString()
       };
       setTransport([...transport, newTransport]);
     }

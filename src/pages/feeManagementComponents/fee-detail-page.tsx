@@ -1,8 +1,6 @@
-"use client"
-
-import React, { useMemo } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { ChevronLeft, Download } from "lucide-react"
-import { mockFees, mockStudents } from "../../services/studentMockData"
+import { feeApi } from "../../services/api"
 
 interface FeeDetailPageProps {
   feeId: string
@@ -10,12 +8,49 @@ interface FeeDetailPageProps {
 }
 
 const FeeDetailPage: React.FC<FeeDetailPageProps> = ({ feeId, onBack }) => {
-  const fee = mockFees.find((f) => f.id === feeId)
-  const student = fee ? mockStudents.find((s) => s.id === fee.studentId) : null
+  const [fee, setFee] = useState<any>(null)
+  const [student, setStudent] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [duration, setDuration] = useState<"month" | "quarter" | "half" | "year">("month")
 
-  const [duration, setDuration] = React.useState<"month" | "quarter" | "half" | "year">("month")
+  useEffect(() => {
+    const loadDetails = async () => {
+      try {
+        const feesList = await feeApi.getFees()
+        const targetFee = feesList.find((item: any) => String(item.id) === feeId)
+        if (targetFee) {
+          setFee({
+            id: String(targetFee.id),
+            studentId: String(targetFee.student_id),
+            class: targetFee.student?.class?.name || '10',
+            section: targetFee.student?.section?.name || 'A',
+            feeType: 'Tuition',
+            totalAmount: Number(targetFee.amount),
+            paidAmount: targetFee.status === 'paid' ? Number(targetFee.amount) : targetFee.status === 'partial' ? Number(targetFee.amount) / 2 : 0,
+            dueDate: targetFee.due_date,
+            paidDate: targetFee.status === 'paid' ? targetFee.updated_at?.split('T')[0] : null,
+            status: targetFee.status === 'unpaid' ? 'pending' : targetFee.status,
+            monthlyBreakdown: []
+          })
 
-  const filteredBreakdown = useMemo(() => {
+          setStudent({
+            firstName: targetFee.student?.user?.name?.split(' ')[0] || 'Student',
+            lastName: targetFee.student?.user?.name?.split(' ').slice(1).join(' ') || '',
+            class: targetFee.student?.class?.name || '10',
+            section: targetFee.student?.section?.name || 'A',
+            email: targetFee.student?.user?.email || 'student@school.com'
+          })
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadDetails()
+  }, [feeId])
+
+  const filteredBreakdown: any[] = useMemo(() => {
     const monthCount = {
       month: 1,
       quarter: 3,
@@ -23,8 +58,17 @@ const FeeDetailPage: React.FC<FeeDetailPageProps> = ({ feeId, onBack }) => {
       year: 12,
     }[duration]
 
-    return fee?.monthlyBreakup?.slice(0, monthCount) || fee?.monthlyBreakdown?.slice(0, monthCount) || []
+    // Fallback empty array since we don't have monthly breakups stored in db
+    return fee?.monthlyBreakdown?.slice(0, monthCount) || []
   }, [fee, duration])
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">Loading details...</p>
+      </div>
+    )
+  }
 
   if (!fee || !student) {
     return (

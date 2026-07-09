@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, X } from 'lucide-react';
-import { mockStudents as initialStudents } from '../services/mockData';
+import { studentApi, classApi } from '../services/api';
 
 interface Student {
   id: string;
@@ -34,7 +34,7 @@ const sectionOptions = ['A','B','C','D','E'];
 const bloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 
 const StudentManagement: React.FC = () => {
-  const [students, setStudents] = useState<Student[]>(initialStudents as unknown as Student[]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -46,6 +46,9 @@ const StudentManagement: React.FC = () => {
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
+
+  const [dbClasses, setDbClasses] = useState<any[]>([]);
+  const [dbSections, setDbSections] = useState<any[]>([]);
 
   const [formData, setFormData] = useState<Partial<Student>>({
     firstName: '',
@@ -69,12 +72,91 @@ const StudentManagement: React.FC = () => {
     associateTeacher: ''
   });
 
+  const ensureClassesAndSections = async () => {
+    try {
+      let classes = await classApi.getClasses();
+      if (classes.length === 0) {
+        for (const name of classOptions) {
+          await classApi.createClass(name);
+        }
+        classes = await classApi.getClasses();
+      }
+      setDbClasses(classes);
+
+      let sections = await classApi.getSections();
+      if (sections.length === 0) {
+        for (const cls of classes) {
+          for (const secName of sectionOptions) {
+            await classApi.createSection(cls.id, secName);
+          }
+        }
+        sections = await classApi.getSections();
+      }
+      setDbSections(sections);
+      return { classes, sections };
+    } catch (err) {
+      console.error('Error seeding classes/sections:', err);
+      return { classes: [], sections: [] };
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const { classes, sections } = await ensureClassesAndSections();
+      
+      let classId = undefined;
+      if (filterClass) {
+        const clsObj = classes.find((c: any) => c.name === filterClass);
+        if (clsObj) classId = clsObj.id;
+      }
+
+      let sectionId = undefined;
+      if (filterSection && classId) {
+        const secObj = sections.find((s: any) => s.name === filterSection && s.class_id === classId);
+        if (secObj) sectionId = secObj.id;
+      }
+
+      const backendStudents = await studentApi.getStudents(classId, sectionId);
+      
+      const mapped = backendStudents.map((s: any) => {
+        const nameParts = (s.user?.name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        return {
+          id: String(s.id),
+          studentId: s.admission_number || '',
+          firstName,
+          lastName,
+          dateOfBirth: s.dob || '',
+          gender: s.gender ? (s.gender.charAt(0).toUpperCase() + s.gender.slice(1)) : 'Male',
+          class: s.class?.name || '',
+          section: s.section?.name || '',
+          rollNumber: s.admission_number ? s.admission_number.replace(/\D/g, '') || '101' : '101',
+          admissionDate: s.created_at ? s.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          parentName: s.guardian?.name || '',
+          parentPhone: '+1234567890',
+          parentEmail: s.guardian?.email || '',
+          houseAddress: '',
+          city: '',
+          state: '',
+          pinCode: ''
+        };
+      });
+      
+      setStudents(mapped);
+    } catch (err) {
+      console.error('Failed to fetch students:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, [filterClass, filterSection]);
+
   const filteredStudents = students.filter(student => {
-    const matchesSearch = [student.firstName, student.lastName, student.studentId, student.class]
+    return [student.firstName, student.lastName, student.studentId, student.class]
       .join(' ').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = filterClass ? student.class === filterClass : true;
-    const matchesSection = filterSection ? student.section === filterSection : true;
-    return matchesSearch && matchesClass && matchesSection;
   });
 
   const handleAdd = () => {
@@ -120,17 +202,22 @@ const StudentManagement: React.FC = () => {
     setShowConfirm(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!toDeleteId) return;
-    setStudents(students.filter(s => s.id !== toDeleteId));
-    setShowConfirm(false);
-    setToDeleteId(null);
+    try {
+      await studentApi.deleteStudent(toDeleteId);
+      setShowConfirm(false);
+      setToDeleteId(null);
+      fetchStudents();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to delete student');
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // basic validation for mandatory fields
     const required = ['firstName','lastName','dateOfBirth','class','section','rollNumber','admissionDate','parentName','parentPhone'];
     for (const key of required) {
       // @ts-ignore
@@ -140,37 +227,57 @@ const StudentManagement: React.FC = () => {
       }
     }
 
-    if (isEditing && currentStudent) {
-      setStudents(students.map(s => s.id === currentStudent.id ? { ...currentStudent, ...formData } as Student : s));
-    } else {
-      const newStudent: Student = {
-        id: Date.now().toString(),
-        studentId: `STU${String(students.length + 1).padStart(3, '0')}`,
-        firstName: formData.firstName || '',
-        lastName: formData.lastName || '',
-        dateOfBirth: formData.dateOfBirth || '',
-        gender: formData.gender || 'Male',
-        class: formData.class || '',
-        section: formData.section || '',
-        rollNumber: formData.rollNumber || '',
-        admissionDate: formData.admissionDate || '',
-        parentName: formData.parentName || '',
-        parentPhone: formData.parentPhone || '',
-        parentEmail: formData.parentEmail || '',
-        houseAddress: formData.houseAddress || '',
-        city: formData.city || '',
-        state: formData.state || '',
-        pinCode: formData.pinCode || '',
-        emergencyContact: formData.emergencyContact || '',
-        bloodGroup: formData.bloodGroup || '',
-        classTeacher: formData.classTeacher || '',
-        associateTeacher: formData.associateTeacher || ''
-      };
-      setStudents([...students, newStudent]);
-    }
+    try {
+      const clsObj = dbClasses.find(c => c.name === formData.class);
+      const classId = clsObj ? clsObj.id : null;
+      
+      const secObj = dbSections.find(s => s.name === formData.section && s.class_id === classId);
+      const sectionId = secObj ? secObj.id : null;
 
-    setShowModal(false);
-    setCurrentStudent(null);
+      if (!classId || !sectionId) {
+        alert('Invalid Class or Section selected');
+        return;
+      }
+
+      const email = `${formData.firstName?.toLowerCase()}.${formData.lastName?.toLowerCase()}@school.com`;
+
+      const payload = {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email,
+        password: 'student123',
+        admission_number: formData.rollNumber ? `STU${formData.rollNumber}` : `STU${Date.now().toString().slice(-4)}`,
+        dob: formData.dateOfBirth,
+        gender: (formData.gender || 'Male').toLowerCase(),
+        class_id: classId,
+        section_id: sectionId,
+        guardian: {
+          name: formData.parentName,
+          email: formData.parentEmail || `${formData.parentName?.toLowerCase().replace(/\s+/g, '')}@example.com`,
+          password: 'parent123'
+        }
+      };
+
+      if (isEditing && currentStudent) {
+        await studentApi.updateStudent(currentStudent.id, {
+          name: payload.name,
+          email,
+          admission_number: payload.admission_number,
+          dob: payload.dob,
+          gender: payload.gender,
+          class_id: classId,
+          section_id: sectionId
+        });
+      } else {
+        await studentApi.createStudent(payload);
+      }
+
+      setShowModal(false);
+      setCurrentStudent(null);
+      fetchStudents();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Operation failed');
+    }
   };
 
   // handle excel import (uses dynamic import of xlsx so bundlers can include it)
@@ -241,14 +348,20 @@ const StudentManagement: React.FC = () => {
                 />
               </div>
 
-              <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="px-3 py-2 border rounded">
+              <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setFilterSection(''); }} className="px-3 py-2 border rounded">
                 <option value="">All Classes</option>
-                {classOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {dbClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
 
               <select value={filterSection} onChange={e => setFilterSection(e.target.value)} className="px-3 py-2 border rounded">
                 <option value="">All Sections</option>
-                {sectionOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                {dbSections
+                  .filter(s => {
+                    const selectedCls = dbClasses.find(c => c.name === filterClass);
+                    return selectedCls ? s.class_id === selectedCls.id : true;
+                  })
+                  .map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                }
               </select>
             </div>
 
@@ -387,12 +500,12 @@ const StudentManagement: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Class *</label>
                   <select
                     value={formData.class}
-                    onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, class: e.target.value, section: '' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
                     required
                   >
                     <option value="">Select Class</option>
-                    {classOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                    {dbClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
 
@@ -405,7 +518,13 @@ const StudentManagement: React.FC = () => {
                     required
                   >
                     <option value="">Select Section</option>
-                    {sectionOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                    {dbSections
+                      .filter(s => {
+                        const selectedCls = dbClasses.find(c => c.name === formData.class);
+                        return selectedCls ? s.class_id === selectedCls.id : true;
+                      })
+                      .map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                    }
                   </select>
                 </div>
 

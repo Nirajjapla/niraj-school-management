@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Search, DollarSign, Eye, Mail, ChevronLeft, ChevronRight } from "lucide-react"
-import { mockFees, mockStudents, type Fee } from "../../services/studentMockData"
+import { type Fee } from "../../services/studentMockData"
+import { feeApi, studentApi } from "../../services/api"
 import PaymentModal from "./payment-modal"
 
 interface FeeListProps {
@@ -11,7 +12,7 @@ interface FeeListProps {
 }
 
 const FeeList: React.FC<FeeListProps> = ({ onSelectFee }) => {
-  const [fees, setFees] = useState<Fee[]>(mockFees)
+  const [fees, setFees] = useState<Fee[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
@@ -19,12 +20,89 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [currentFee, setCurrentFee] = useState<Fee | null>(null)
   const [showReminderModal, setShowReminderModal] = useState(false)
+  const [studentNames, setStudentNames] = useState<Record<string, string>>({})
 
   const itemsPerPage = 10
 
+  const fetchFees = async () => {
+    try {
+      const dbFees = await feeApi.getFees();
+      
+      const mapped = dbFees.map((f: any) => {
+        return {
+          id: String(f.id),
+          studentId: String(f.student_id),
+          class: f.student?.class?.name || '10',
+          section: f.student?.section?.name || 'A',
+          feeType: 'Tuition',
+          totalAmount: Number(f.amount),
+          paidAmount: f.status === 'paid' ? Number(f.amount) : f.status === 'partial' ? Number(f.amount) / 2 : 0,
+          dueDate: f.due_date,
+          paidDate: f.status === 'paid' ? f.updated_at?.split('T')[0] : null,
+          status: f.status === 'unpaid' ? 'pending' : f.status,
+          monthlyBreakdown: []
+        };
+      });
+
+      // Get all student names
+      const names: Record<string, string> = {};
+      dbFees.forEach((f: any) => {
+        if (f.student?.user?.name) {
+          names[String(f.student_id)] = f.student.user.name;
+        }
+      });
+      setStudentNames(names);
+      
+      // Seed initial fees if db is completely empty
+      if (mapped.length === 0) {
+        // Find existing students to link fees
+        const students = await studentApi.getStudents();
+        if (students.length > 0) {
+          for (let i = 0; i < Math.min(students.length, 3); i++) {
+            await feeApi.createFee({
+              student_id: students[i].id,
+              amount: 5000,
+              due_date: '2025-11-01',
+              status: i === 0 ? 'paid' : i === 1 ? 'partial' : 'unpaid'
+            });
+          }
+          // Fetch again
+          const updatedFees = await feeApi.getFees();
+          const remap = updatedFees.map((f: any) => ({
+            id: String(f.id),
+            studentId: String(f.student_id),
+            class: f.student?.class?.name || '10',
+            section: f.student?.section?.name || 'A',
+            feeType: 'Tuition',
+            totalAmount: Number(f.amount),
+            paidAmount: f.status === 'paid' ? Number(f.amount) : f.status === 'partial' ? Number(f.amount) / 2 : 0,
+            dueDate: f.due_date,
+            paidDate: f.status === 'paid' ? f.updated_at?.split('T')[0] : null,
+            status: f.status === 'unpaid' ? 'pending' : f.status,
+            monthlyBreakdown: []
+          }));
+          updatedFees.forEach((f: any) => {
+            if (f.student?.user?.name) {
+              names[String(f.student_id)] = f.student.user.name;
+            }
+          });
+          setStudentNames(names);
+          setFees(remap);
+          return;
+        }
+      }
+      setFees(mapped);
+    } catch (err) {
+      console.error('Error fetching fees:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFees();
+  }, []);
+
   const getStudentName = (studentId: string) => {
-    const student = mockStudents.find((s) => s.id === studentId)
-    return student ? `${student.firstName} ${student.lastName}` : "Unknown"
+    return studentNames[studentId] || "Unknown"
   }
 
   const filteredFees = useMemo(() => {
@@ -40,7 +118,7 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee }) => {
 
       return matchesSearch && matchesClass && matchesSection
     })
-  }, [fees, searchTerm, selectedClass, selectedSection])
+  }, [fees, searchTerm, selectedClass, selectedSection, studentNames])
 
   const paginatedFees = useMemo(() => {
     const startIdx = (currentPage - 1) * itemsPerPage
@@ -56,27 +134,21 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee }) => {
     setShowPaymentModal(true)
   }
 
-  const handleSubmitPayment = (amount: number) => {
+  const handleSubmitPayment = async (amount: number) => {
     if (!currentFee) return
 
-    const newPaidAmount = currentFee.paidAmount + amount
-    const newStatus = newPaidAmount >= currentFee.totalAmount ? "paid" : newPaidAmount > 0 ? "partial" : "pending"
+    try {
+      const newPaidAmount = currentFee.paidAmount + amount
+      const newStatus = newPaidAmount >= currentFee.totalAmount ? "paid" : newPaidAmount > 0 ? "partial" : "unpaid"
 
-    setFees(
-      fees.map((f) =>
-        f.id === currentFee.id
-          ? {
-              ...f,
-              paidAmount: newPaidAmount,
-              paidDate: new Date().toISOString().split("T")[0],
-              status: newStatus as "paid" | "pending" | "partial" | "overdue",
-            }
-          : f,
-      ),
-    )
-
-    setShowPaymentModal(false)
-    setCurrentFee(null)
+      await feeApi.updateFeeStatus(currentFee.id, newStatus);
+      setShowPaymentModal(false)
+      setCurrentFee(null)
+      fetchFees()
+    } catch (err) {
+      console.error(err);
+      alert('Failed to register fee payment');
+    }
   }
 
   const handleSendReminders = () => {

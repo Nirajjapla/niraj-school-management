@@ -1,18 +1,56 @@
-import React from 'react';
-import { Users, GraduationCap, DollarSign, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
-import { mockStudents, mockTeachers, mockStaff, mockFees, mockLeaves, mockCirculars } from '../services/mockData';
+import React, { useState, useEffect } from 'react';
+import { Users, GraduationCap, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { studentApi, teacherApi, feeApi } from '../services/api';
+import { mockLeaves, mockCirculars } from '../services/mockData';
 
 const Dashboard: React.FC = () => {
-  const totalStudents = mockStudents.length;
-  const totalStaff = mockTeachers.length + mockStaff.length;
-  const totalFees = mockFees.reduce((sum, fee) => sum + fee.amount, 0);
-  const collectedFees = mockFees.reduce((sum, fee) => sum + fee.paidAmount, 0);
-  const pendingFees = totalFees - collectedFees;
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalStaff, setTotalStaff] = useState(0);
+  const [collectedFees, setCollectedFees] = useState(0);
+  const [totalFees, setTotalFees] = useState(0);
+  const [pendingFees, setPendingFees] = useState(0);
+  const [presentToday, setPresentToday] = useState(0);
+  const [absentToday, setAbsentToday] = useState(0);
+  const [attendancePercentage, setAttendancePercentage] = useState(0);
+
   const pendingLeaves = mockLeaves.filter(leave => leave.status === 'pending').length;
 
-  const presentToday = Math.floor(totalStudents * 0.92);
-  const absentToday = totalStudents - presentToday;
-  const attendancePercentage = Math.floor((presentToday / totalStudents) * 100);
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        const students = await studentApi.getStudents();
+        const teachers = await teacherApi.getTeachers();
+        const fees = await feeApi.getFees();
+
+        const sCount = students.length;
+        const tCount = teachers.length;
+
+        const total = fees.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
+        const collected = fees.reduce((sum: number, f: any) => {
+          if (f.status === 'paid') return sum + Number(f.amount);
+          if (f.status === 'partial') return sum + (Number(f.amount) / 2);
+          return sum;
+        }, 0);
+
+        setTotalStudents(sCount);
+        setTotalStaff(tCount);
+        setCollectedFees(collected);
+        setTotalFees(total);
+        setPendingFees(total - collected);
+
+        const present = sCount > 0 ? Math.floor(sCount * 0.92) : 0;
+        const absent = sCount - present;
+        const pct = sCount > 0 ? Math.floor((present / sCount) * 100) : 0;
+
+        setPresentToday(present);
+        setAbsentToday(absent);
+        setAttendancePercentage(pct);
+      } catch (err) {
+        console.error('Error fetching dashboard stats:', err);
+      }
+    };
+    fetchDashboardStats();
+  }, []);
 
   const stats = [
     {

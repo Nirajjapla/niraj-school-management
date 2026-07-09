@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authApi } from '../services/api';
 
 interface User {
   id: string;
   email: string;
   fullName: string;
   role: string;
+  schoolId?: number;
 }
 
 interface AuthContextType {
@@ -39,25 +41,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (email === 'admin@school.com' && password === 'admin123') {
-      const userData = {
-        id: '1',
-        email: 'admin@school.com',
-        fullName: 'Admin User',
-        role: 'admin'
+    try {
+      const data = await authApi.login(email, password);
+      localStorage.setItem('token', data.token);
+      const userData: User = {
+        id: String(data.user.id),
+        email: data.user.email,
+        fullName: data.user.name,
+        role: data.user.role,
+        schoolId: data.user.school_id
       };
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-    } else {
-      throw new Error('Invalid credentials');
+    } catch (err: any) {
+      // Auto-register fallback for default admin credentials
+      if (email === 'admin@school.com' && password === 'admin123') {
+        try {
+          await authApi.register({
+            name: 'Admin User',
+            email: 'admin@school.com',
+            password: 'admin123',
+            role: 'admin'
+          });
+          // Attempt login again
+          const data = await authApi.login(email, password);
+          localStorage.setItem('token', data.token);
+          const userData: User = {
+            id: String(data.user.id),
+            email: data.user.email,
+            fullName: data.user.name,
+            role: data.user.role,
+            schoolId: data.user.school_id
+          };
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          return;
+        } catch (regErr: any) {
+          throw new Error(regErr.message || 'Auto-registration failed');
+        }
+      }
+      throw err;
     }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   const forgotPassword = async (email: string) => {
@@ -67,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const changePassword = async (oldPassword: string, newPassword: string) => {
     await new Promise(resolve => setTimeout(resolve, 500));
-    console.log('Password changed successfully');
+    console.log('Password changed successfully for:', oldPassword, newPassword);
   };
 
   return (

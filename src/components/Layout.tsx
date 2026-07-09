@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   LogOut,
-  User
+  User,
+  School
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -32,6 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) =>
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'schools', label: 'School Management', icon: School },
     { id: 'students', label: 'Student Management', icon: Users },
     { id: 'teachers', label: 'Teacher Management', icon: GraduationCap },
     { id: 'staff', label: 'Staff Management', icon: UserCog },

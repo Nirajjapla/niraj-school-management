@@ -15,6 +15,7 @@ import InventoryManagement from './pages/InventoryManagement';
 import ReportsAnalytics from './pages/ReportsAnalytics';
 import AcademicManagement from './pages/AcademicManagement';
 import ChangePassword from './pages/ChangePassword';
+import SchoolManagement from './pages/SchoolManagement';
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -39,6 +40,8 @@ const AppContent: React.FC = () => {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
+      case 'schools':
+        return <SchoolManagement />;
       case 'students':
         return <StudentManagement />;
       case 'teachers':

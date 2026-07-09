@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, X, Filter } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, X } from 'lucide-react';
 import { mockStaff as initialStaff } from '../services/mockData';
 
 interface Staff {
@@ -25,7 +25,7 @@ const designations = ['Clerk', 'Accountant', 'Librarian', 'Lab Assistant'];
 const departments = ['Admin', 'Accounts', 'Library', 'Science'];
 
 const StaffManagement: React.FC = () => {
-  const [staff, setStaff] = useState<Staff[]>(initialStaff as Staff[]);
+  const [staff, setStaff] = useState<Staff[]>(initialStaff as any as Staff[]);
   const [searchTerm, setSearchTerm] = useState('');
   const [designationFilter, setDesignationFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -106,9 +106,9 @@ const StaffManagement: React.FC = () => {
       setStaff(staff.map((s) => (s.id === currentStaff.id ? { ...currentStaff, ...formData } : s)));
     } else {
       const newStaff: Staff = {
+        ...(formData as Staff),
         id: Date.now().toString(),
         staffId: `STF${String(staff.length + 1).padStart(3, '0')}`,
-        ...(formData as Staff),
       };
       setStaff([...staff, newStaff]);
     }
@@ -325,69 +325,66 @@ const StaffManagement: React.FC = () => {
               </div>
 
               {/* Address Fields */}
-               {/* Address */}
-  <div className="md:col-span-2">
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-      Address <span className="text-red-500">*</span>
-    </label>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <input
-        type="text"
-        placeholder="Street"
-        value={formData.address?.street || ''}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            address: { ...formData.address!, street: e.target.value },
-          })
-        }
-        className="border rounded-lg px-3 py-2 w-full"
-        required
-      />
-      <input
-        type="text"
-        placeholder="City"
-        value={formData.address?.city || ''}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            address: { ...formData.address!, city: e.target.value },
-          })
-        }
-        className="border rounded-lg px-3 py-2 w-full"
-        required
-      />
-      <input
-        type="text"
-        placeholder="State"
-        value={formData.address?.state || ''}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            address: { ...formData.address!, state: e.target.value },
-          })
-        }
-        className="border rounded-lg px-3 py-2 w-full"
-        required
-      />
-      <input
-        type="text"
-        placeholder="ZIP"
-        value={formData.address?.zip || ''}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            address: { ...formData.address!, zip: e.target.value },
-          })
-        }
-        className="border rounded-lg px-3 py-2 w-full"
-        required
-      />
-    </div>
-  </div>
-
-              
-
+              {/* Address */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Street"
+                    value={formData.houseAddress || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        houseAddress: e.target.value,
+                      })
+                    }
+                    className="border rounded-lg px-3 py-2 w-full"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="City"
+                    value={formData.city || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        city: e.target.value,
+                      })
+                    }
+                    className="border rounded-lg px-3 py-2 w-full"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="State"
+                    value={formData.state || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        state: e.target.value,
+                      })
+                    }
+                    className="border rounded-lg px-3 py-2 w-full"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="ZIP"
+                    value={formData.pinCode || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        pinCode: e.target.value,
+                      })
+                    }
+                    className="border rounded-lg px-3 py-2 w-full"
+                    required
+                  />
+                </div>
+              </div>
               <div className="col-span-2 flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
