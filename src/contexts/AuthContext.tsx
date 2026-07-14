@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../services/api';
+import { authApi, classApi } from '../services/api';
+
 
 interface User {
   id: string;
@@ -32,12 +33,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  };
+
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    const handleUnauthorized = () => {
+      logout();
+    };
+    window.addEventListener('unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('unauthorized', handleUnauthorized);
+    };
+  }, []);
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      if (storedUser && token) {
+        try {
+          setUser(JSON.parse(storedUser));
+          // Perform a token validation request to check if the session is still active
+          await classApi.getClasses();
+        } catch (err) {
+          console.warn('Initial session check failed:', err);
+          logout();
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -84,11 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-  };
+
 
   const forgotPassword = async (email: string) => {
     await new Promise(resolve => setTimeout(resolve, 500));

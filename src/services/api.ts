@@ -24,6 +24,12 @@ async function apiFetch(path: string, options: RequestInit = {}) {
     data = { message: text };
   }
 
+  if (response.status === 401 && path !== '/users/login' && path !== '/users/register') {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.dispatchEvent(new Event('unauthorized'));
+  }
+
   if (!response.ok) {
     throw new Error(data.message || 'Something went wrong');
   }
@@ -241,6 +247,35 @@ export const schoolApi = {
   },
   deleteSchool: async (id: number | string) => {
     const res = await apiFetch(`/schools/${id}`, {
+      method: 'DELETE'
+    });
+    return res.data;
+  }
+};
+
+// Subjects
+export const subjectApi = {
+  getSubjects: async (classId?: number | string) => {
+    const query = classId ? `?class_id=${classId}` : '';
+    const res = await apiFetch(`/subjects${query}`);
+    return res.data || [];
+  },
+  createSubject: async (subjectData: any) => {
+    const res = await apiFetch('/subjects', {
+      method: 'POST',
+      body: JSON.stringify(subjectData)
+    });
+    return res.data;
+  },
+  updateSubject: async (id: number | string, subjectData: any) => {
+    const res = await apiFetch(`/subjects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(subjectData)
+    });
+    return res.data;
+  },
+  deleteSubject: async (id: number | string) => {
+    const res = await apiFetch(`/subjects/${id}`, {
       method: 'DELETE'
     });
     return res.data;
