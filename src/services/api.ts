@@ -1,4 +1,7 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000/api'
+    : 'http://13.234.116.27:3000/api';
 
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');
@@ -276,6 +279,62 @@ export const subjectApi = {
   },
   deleteSubject: async (id: number | string) => {
     const res = await apiFetch(`/subjects/${id}`, {
+      method: 'DELETE'
+    });
+    return res.data;
+  }
+};
+
+// Designations
+export const designationApi = {
+  getDesignations: async () => {
+    const res = await apiFetch('/designations');
+    return res.data || [];
+  },
+  createDesignation: async (name: string, description?: string) => {
+    const res = await apiFetch('/designations', {
+      method: 'POST',
+      body: JSON.stringify({ name, description })
+    });
+    return res.data;
+  },
+  updateDesignation: async (id: number | string, name: string, description?: string) => {
+    const res = await apiFetch(`/designations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, description })
+    });
+    return res.data;
+  },
+  deleteDesignation: async (id: number | string) => {
+    const res = await apiFetch(`/designations/${id}`, {
+      method: 'DELETE'
+    });
+    return res.data;
+  }
+};
+
+// Departments
+export const departmentApi = {
+  getDepartments: async () => {
+    const res = await apiFetch('/departments');
+    return res.data || [];
+  },
+  createDepartment: async (name: string, description?: string) => {
+    const res = await apiFetch('/departments', {
+      method: 'POST',
+      body: JSON.stringify({ name, description })
+    });
+    return res.data;
+  },
+  updateDepartment: async (id: number | string, name: string, description?: string) => {
+    const res = await apiFetch(`/departments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, description })
+    });
+    return res.data;
+  },
+  deleteDepartment: async (id: number | string) => {
+    const res = await apiFetch(`/departments/${id}`, {
       method: 'DELETE'
     });
     return res.data;
