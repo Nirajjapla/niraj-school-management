@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
-import { studentApi, teacherApi, feeApi } from '../services/api';
-import { mockLeaves, mockCirculars } from '../services/mockData';
+import { Users, GraduationCap, DollarSign, TrendingUp, TrendingDown, Bell, Calendar } from 'lucide-react';
+import { adminApi, studentApi, teacherApi, feeApi, leaveApi, announcementApi } from '../services/api';
 
 const Dashboard: React.FC = () => {
   const [totalStudents, setTotalStudents] = useState(0);
@@ -12,41 +11,53 @@ const Dashboard: React.FC = () => {
   const [presentToday, setPresentToday] = useState(0);
   const [absentToday, setAbsentToday] = useState(0);
   const [attendancePercentage, setAttendancePercentage] = useState(0);
-
-  const pendingLeaves = mockLeaves.filter(leave => leave.status === 'pending').length;
+  const [pendingLeavesList, setPendingLeavesList] = useState<any[]>([]);
+  const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardStats = async () => {
       try {
-        const students = await studentApi.getStudents();
-        const teachers = await teacherApi.getTeachers();
-        const fees = await feeApi.getFees();
+        const liveStats = await adminApi.getDashboardStats();
+        if (liveStats) {
+          setTotalStudents(liveStats.overview?.total_students || 0);
+          setTotalStaff(liveStats.overview?.total_teachers || 0);
+          setCollectedFees(liveStats.finance?.total_collected || 0);
+          setPendingFees(liveStats.finance?.total_pending || 0);
+          setTotalFees((liveStats.finance?.total_collected || 0) + (liveStats.finance?.total_pending || 0));
 
-        const sCount = students.length;
-        const tCount = teachers.length;
+          setPresentToday(liveStats.attendance_today?.present || 0);
+          setAbsentToday(liveStats.attendance_today?.absent || 0);
+          setAttendancePercentage(liveStats.attendance_today?.percentage || 0);
+          setAnnouncementsList(liveStats.recent_announcements || []);
+        }
 
-        const total = fees.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
-        const collected = fees.reduce((sum: number, f: any) => {
-          if (f.status === 'paid') return sum + Number(f.amount);
-          if (f.status === 'partial') return sum + (Number(f.amount) / 2);
-          return sum;
-        }, 0);
-
-        setTotalStudents(sCount);
-        setTotalStaff(tCount);
-        setCollectedFees(collected);
-        setTotalFees(total);
-        setPendingFees(total - collected);
-
-        const present = sCount > 0 ? Math.floor(sCount * 0.92) : 0;
-        const absent = sCount - present;
-        const pct = sCount > 0 ? Math.floor((present / sCount) * 100) : 0;
-
-        setPresentToday(present);
-        setAbsentToday(absent);
-        setAttendancePercentage(pct);
+        const leaves = await leaveApi.getLeaves({ status: 'pending' });
+        setPendingLeavesList(leaves || []);
       } catch (err) {
-        console.error('Error fetching dashboard stats:', err);
+        console.error('Fallback fetching dashboard stats:', err);
+        try {
+          const students = await studentApi.getStudents();
+          const teachers = await teacherApi.getTeachers();
+          const fees = await feeApi.getFees();
+
+          const sCount = students.length;
+          const tCount = teachers.length;
+
+          const total = fees.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
+          const collected = fees.reduce((sum: number, f: any) => {
+            if (f.status === 'paid') return sum + Number(f.amount);
+            if (f.status === 'partial') return sum + (Number(f.amount) / 2);
+            return sum;
+          }, 0);
+
+          setTotalStudents(sCount);
+          setTotalStaff(tCount);
+          setCollectedFees(collected);
+          setTotalFees(total);
+          setPendingFees(total - collected);
+        } catch (e) {
+          console.error('Failed to load fallback stats:', e);
+        }
       }
     };
     fetchDashboardStats();

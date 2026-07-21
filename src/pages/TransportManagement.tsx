@@ -1,19 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
+import { transportApi } from '../services/api';
 import { mockTransportation as initialTransport } from '../services/mockData';
 
 interface Transport {
-  id: string;
-  routeName: string;
-  vehicleNumber: string;
-  driverName: string;
-  driverPhone: string;
-  capacity: number;
+  id: string | number;
+  routeName?: string;
+  route_name?: string;
+  vehicleNumber?: string;
+  vehicle_number?: string;
+  driverName?: string;
+  driver_name?: string;
+  driverPhone?: string;
+  driver_phone?: string;
+  capacity?: number;
   status: string;
 }
 
 const TransportManagement: React.FC = () => {
-  const [transport, setTransport] = useState<Transport[]>(initialTransport);
+  const [transport, setTransport] = useState<Transport[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [currentTransport, setCurrentTransport] = useState<Transport | null>(null);
@@ -24,15 +29,38 @@ const TransportManagement: React.FC = () => {
     vehicleNumber: '',
     driverName: '',
     driverPhone: '',
-    capacity: 0,
+    capacity: 40,
     status: 'active'
   });
 
-  const filteredTransport = transport.filter(t =>
-    t.routeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.vehicleNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.driverName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const fetchRoutes = async () => {
+    try {
+      const data = await transportApi.getRoutes();
+      if (Array.isArray(data) && data.length > 0) {
+        setTransport(data);
+      } else {
+        setTransport(initialTransport);
+      }
+    } catch (err) {
+      console.error('Error fetching routes:', err);
+      setTransport(initialTransport);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoutes();
+  }, []);
+
+  const filteredTransport = transport.filter(t => {
+    const name = t.route_name || t.routeName || '';
+    const vehicle = t.vehicle_number || t.vehicleNumber || '';
+    const driver = t.driver_name || t.driverName || '';
+    return (
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const handleAdd = () => {
     setIsEditing(false);
@@ -41,7 +69,7 @@ const TransportManagement: React.FC = () => {
       vehicleNumber: '',
       driverName: '',
       driverPhone: '',
-      capacity: 0,
+      capacity: 40,
       status: 'active'
     });
     setShowModal(true);
@@ -50,31 +78,40 @@ const TransportManagement: React.FC = () => {
   const handleEdit = (item: Transport) => {
     setIsEditing(true);
     setCurrentTransport(item);
-    setFormData(item);
+    setFormData({
+      routeName: item.route_name || item.routeName || '',
+      vehicleNumber: item.vehicle_number || item.vehicleNumber || '',
+      driverName: item.driver_name || item.driverName || '',
+      driverPhone: item.driver_phone || item.driverPhone || '',
+      capacity: item.capacity || 40,
+      status: item.status || 'active'
+    });
     setShowModal(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string | number) => {
     if (window.confirm('Are you sure you want to delete this transport?')) {
       setTransport(transport.filter(t => t.id !== id));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isEditing && currentTransport) {
-      setTransport(transport.map(t => t.id === currentTransport.id ? { ...currentTransport, ...formData } : t));
-    } else {
-      const newTransport: Transport = {
-        ...formData as Transport,
-        id: Date.now().toString()
-      };
-      setTransport([...transport, newTransport]);
+    try {
+      await transportApi.createRoute({
+        route_name: formData.routeName || formData.route_name,
+        vehicle_number: formData.vehicleNumber || formData.vehicle_number,
+        driver_name: formData.driverName || formData.driver_name,
+        driver_phone: formData.driverPhone || formData.driver_phone
+      });
+      fetchRoutes();
+      setShowModal(false);
+      setCurrentTransport(null);
+    } catch (err: any) {
+      console.error('Error creating route:', err);
+      alert(err.message || 'Failed to save route');
     }
-
-    setShowModal(false);
-    setCurrentTransport(null);
   };
 
   return (
@@ -123,14 +160,14 @@ const TransportManagement: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {filteredTransport.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-800 font-medium">{item.routeName}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{item.vehicleNumber}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{item.driverName}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{item.driverPhone}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{item.capacity}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800 font-medium">{item.route_name || item.routeName}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{item.vehicle_number || item.vehicleNumber}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{item.driver_name || item.driverName}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{item.driver_phone || item.driverPhone}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{item.capacity || 40}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      item.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      item.status === 'active' || item.status === 'on_route' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                     }`}>
                       {item.status}
                     </span>

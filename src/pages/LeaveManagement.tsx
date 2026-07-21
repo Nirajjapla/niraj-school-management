@@ -1,39 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, CheckCircle, XCircle } from 'lucide-react';
+import { leaveApi } from '../services/api';
 import { mockLeaves as initialLeaves } from '../services/mockData';
 
 interface Leave {
-  id: string;
-  userId: string;
-  userType: string;
-  userName: string;
-  leaveType: string;
-  fromDate: string;
-  toDate: string;
+  id: string | number;
+  userName?: string;
+  applicant?: { name: string; role: string };
+  userType?: string;
+  leave_type?: string;
+  leaveType?: string;
+  start_date?: string;
+  fromDate?: string;
+  end_date?: string;
+  toDate?: string;
   reason: string;
   status: string;
-  approvedBy: string | null;
+  approvedBy?: string | null;
 }
 
 const LeaveManagement: React.FC = () => {
-  const [leaves, setLeaves] = useState<Leave[]>(initialLeaves);
+  const [leaves, setLeaves] = useState<Leave[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const filteredLeaves = leaves.filter(leave =>
-    leave.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    leave.leaveType.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleApprove = (id: string) => {
-    setLeaves(leaves.map(leave =>
-      leave.id === id ? { ...leave, status: 'approved', approvedBy: 'Admin User' } : leave
-    ));
+  const fetchLeaves = async () => {
+    try {
+      setLoading(true);
+      const data = await leaveApi.getLeaves();
+      if (Array.isArray(data) && data.length > 0) {
+        setLeaves(data);
+      } else {
+        setLeaves(initialLeaves);
+      }
+    } catch (err) {
+      console.error('Error fetching leaves:', err);
+      setLeaves(initialLeaves);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setLeaves(leaves.map(leave =>
-      leave.id === id ? { ...leave, status: 'rejected', approvedBy: 'Admin User' } : leave
-    ));
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const filteredLeaves = leaves.filter(leave => {
+    const name = leave.applicant?.name || leave.userName || '';
+    const type = leave.leave_type || leave.leaveType || '';
+    return (
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      type.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  const handleApprove = async (id: string | number) => {
+    try {
+      await leaveApi.updateLeaveStatus(id, 'approved', 'Approved by Admin');
+      fetchLeaves();
+    } catch (err) {
+      console.error('Error approving leave:', err);
+      setLeaves(leaves.map(leave =>
+        leave.id === id ? { ...leave, status: 'approved' } : leave
+      ));
+    }
+  };
+
+  const handleReject = async (id: string | number) => {
+    try {
+      await leaveApi.updateLeaveStatus(id, 'rejected', 'Rejected by Admin');
+      fetchLeaves();
+    } catch (err) {
+      console.error('Error rejecting leave:', err);
+      setLeaves(leaves.map(leave =>
+        leave.id === id ? { ...leave, status: 'rejected' } : leave
+      ));
+    }
   };
 
   return (
@@ -74,11 +116,11 @@ const LeaveManagement: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {filteredLeaves.map((leave) => (
                 <tr key={leave.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-800 font-medium">{leave.userName}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800 capitalize">{leave.userType}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800 capitalize">{leave.leaveType}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{leave.fromDate}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{leave.toDate}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800 font-medium">{leave.applicant?.name || leave.userName || 'N/A'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800 capitalize">{leave.applicant?.role || leave.userType || 'Student'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800 capitalize">{leave.leave_type || leave.leaveType || 'casual'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{leave.start_date || leave.fromDate || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{leave.end_date || leave.toDate || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-800">{leave.reason}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${

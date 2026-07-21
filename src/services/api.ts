@@ -340,3 +340,312 @@ export const departmentApi = {
     return res.data;
   }
 };
+
+// Admin Dashboard & Reports
+export const adminApi = {
+  getDashboardStats: async () => {
+    const res = await apiFetch('/admin/dashboard');
+    return res.data;
+  },
+  getAttendanceReport: async (params?: Record<string, any>) => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await apiFetch(`/admin/reports/attendance${query}`);
+    return res.data;
+  },
+  getFeeReport: async (params?: Record<string, any>) => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await apiFetch(`/admin/reports/fees${query}`);
+    return res.data;
+  },
+  getExamPerformanceReport: async (examId: number | string) => {
+    const res = await apiFetch(`/admin/reports/exams/${examId}`);
+    return res.data;
+  },
+  toggleUserStatus: async (userId: number | string, status: string) => {
+    const res = await apiFetch(`/admin/users/${userId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+    return res.data;
+  }
+};
+
+// Announcements
+export const announcementApi = {
+  getAnnouncements: async () => {
+    const res = await apiFetch('/announcements');
+    return res.data || [];
+  },
+  createAnnouncement: async (announcementData: any) => {
+    const res = await apiFetch('/announcements', {
+      method: 'POST',
+      body: JSON.stringify(announcementData)
+    });
+    return res.data;
+  },
+  deleteAnnouncement: async (id: number | string) => {
+    const res = await apiFetch(`/announcements/${id}`, {
+      method: 'DELETE'
+    });
+    return res.data;
+  }
+};
+
+// Notifications
+export const notificationApi = {
+  getMyNotifications: async () => {
+    const res = await apiFetch('/notifications');
+    return res.data || [];
+  },
+  getUnreadCount: async () => {
+    const res = await apiFetch('/notifications/unread-count');
+    return res.data?.unread_count || 0;
+  },
+  markRead: async (id: number | string) => {
+    const res = await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
+    return res.data;
+  },
+  markAllRead: async () => {
+    const res = await apiFetch('/notifications/read-all', { method: 'PATCH' });
+    return res.data;
+  },
+  broadcast: async (data: { user_ids: number[]; title: string; body: string; type?: string }) => {
+    const res = await apiFetch('/notifications/broadcast', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return res.data;
+  }
+};
+
+// Events
+export const eventApi = {
+  getEvents: async (params?: Record<string, any>) => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await apiFetch(`/events${query}`);
+    return res.data || [];
+  },
+  createEvent: async (eventData: any) => {
+    const res = await apiFetch('/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData)
+    });
+    return res.data;
+  },
+  updateEvent: async (id: number | string, eventData: any) => {
+    const res = await apiFetch(`/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(eventData)
+    });
+    return res.data;
+  },
+  deleteEvent: async (id: number | string) => {
+    const res = await apiFetch(`/events/${id}`, { method: 'DELETE' });
+    return res.data;
+  }
+};
+
+// Assignments
+export const assignmentApi = {
+  getAssignments: async (params?: Record<string, any>) => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await apiFetch(`/assignments${query}`);
+    return res.data || [];
+  },
+  createAssignment: async (assignmentData: any) => {
+    const res = await apiFetch('/assignments', {
+      method: 'POST',
+      body: JSON.stringify(assignmentData)
+    });
+    return res.data;
+  },
+  getSubmissions: async (id: number | string) => {
+    const res = await apiFetch(`/assignments/${id}/submissions`);
+    return res.data || [];
+  },
+  gradeSubmission: async (submissionId: number | string, marks_obtained: number, feedback?: string) => {
+    const res = await apiFetch(`/assignments/submissions/${submissionId}/grade`, {
+      method: 'PUT',
+      body: JSON.stringify({ marks_obtained, feedback })
+    });
+    return res.data;
+  }
+};
+
+// Leaves
+export const leaveApi = {
+  getLeaves: async (params?: Record<string, any>) => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await apiFetch(`/leaves${query}`);
+    return res.data || [];
+  },
+  getMyLeaves: async () => {
+    const res = await apiFetch('/leaves/my-leaves');
+    return res.data || [];
+  },
+  createLeave: async (leaveData: any) => {
+    const res = await apiFetch('/leaves', {
+      method: 'POST',
+      body: JSON.stringify(leaveData)
+    });
+    return res.data;
+  },
+  updateLeaveStatus: async (id: number | string, status: string, admin_remarks?: string) => {
+    const res = await apiFetch(`/leaves/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, admin_remarks })
+    });
+    return res.data;
+  }
+};
+
+// Transport
+export const transportApi = {
+  getRoutes: async () => {
+    const res = await apiFetch('/transport/routes');
+    return res.data || [];
+  },
+  createRoute: async (routeData: any) => {
+    const res = await apiFetch('/transport/routes', {
+      method: 'POST',
+      body: JSON.stringify(routeData)
+    });
+    return res.data;
+  },
+  updateLocation: async (id: number | string, current_latitude: number, current_longitude: number, status?: string) => {
+    const res = await apiFetch(`/transport/routes/${id}/location`, {
+      method: 'PATCH',
+      body: JSON.stringify({ current_latitude, current_longitude, status })
+    });
+    return res.data;
+  }
+};
+
+// Library
+export const libraryApi = {
+  getBooks: async (search?: string) => {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    const res = await apiFetch(`/library/books${query}`);
+    return res.data || [];
+  },
+  createBook: async (bookData: any) => {
+    const res = await apiFetch('/library/books', {
+      method: 'POST',
+      body: JSON.stringify(bookData)
+    });
+    return res.data;
+  },
+  issueBook: async (issueData: any) => {
+    const res = await apiFetch('/library/issue', {
+      method: 'POST',
+      body: JSON.stringify(issueData)
+    });
+    return res.data;
+  },
+  returnBook: async (issueId: number | string, fineAmount: number = 0) => {
+    const res = await apiFetch(`/library/return/${issueId}`, {
+      method: 'POST',
+      body: JSON.stringify({ fine_amount: fineAmount })
+    });
+    return res.data;
+  }
+};
+
+// Resources
+export const resourceApi = {
+  getResources: async (params?: Record<string, any>) => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await apiFetch(`/resources${query}`);
+    return res.data || [];
+  },
+  createResource: async (resourceData: any) => {
+    const res = await apiFetch('/resources', {
+      method: 'POST',
+      body: JSON.stringify(resourceData)
+    });
+    return res.data;
+  },
+  deleteResource: async (id: number | string) => {
+    const res = await apiFetch(`/resources/${id}`, { method: 'DELETE' });
+    return res.data;
+  }
+};
+
+// Gallery
+export const galleryApi = {
+  getAlbums: async () => {
+    const res = await apiFetch('/gallery/albums');
+    return res.data || [];
+  },
+  createAlbum: async (albumData: any) => {
+    const res = await apiFetch('/gallery/albums', {
+      method: 'POST',
+      body: JSON.stringify(albumData)
+    });
+    return res.data;
+  },
+  addMedia: async (albumId: number | string, media: any[]) => {
+    const res = await apiFetch(`/gallery/albums/${albumId}/media`, {
+      method: 'POST',
+      body: JSON.stringify({ media })
+    });
+    return res.data;
+  }
+};
+
+// Polls
+export const pollApi = {
+  getPolls: async () => {
+    const res = await apiFetch('/polls');
+    return res.data || [];
+  },
+  createPoll: async (pollData: { question: string; options: string[] }) => {
+    const res = await apiFetch('/polls', {
+      method: 'POST',
+      body: JSON.stringify(pollData)
+    });
+    return res.data;
+  },
+  vote: async (id: number | string, optionId: number) => {
+    const res = await apiFetch(`/polls/${id}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ option_id: optionId })
+    });
+    return res.data;
+  },
+  getResults: async (id: number | string) => {
+    const res = await apiFetch(`/polls/${id}/results`);
+    return res.data;
+  },
+  closePoll: async (id: number | string) => {
+    const res = await apiFetch(`/polls/${id}/close`, { method: 'PATCH' });
+    return res.data;
+  }
+};
+
+// Chat
+export const chatApi = {
+  getConversations: async () => {
+    const res = await apiFetch('/chat/conversations');
+    return res.data || [];
+  },
+  startConversation: async (recipientId: number | string) => {
+    const res = await apiFetch('/chat/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ recipient_id: recipientId })
+    });
+    return res.data;
+  },
+  getMessages: async (conversationId: number | string) => {
+    const res = await apiFetch(`/chat/conversations/${conversationId}/messages`);
+    return res.data || [];
+  },
+  sendMessage: async (conversationId: number | string, text: string) => {
+    const res = await apiFetch(`/chat/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ message_text: text })
+    });
+    return res.data;
+  }
+};
+

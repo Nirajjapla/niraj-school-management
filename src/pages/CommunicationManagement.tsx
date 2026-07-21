@@ -1,19 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, X } from 'lucide-react';
+import { announcementApi } from '../services/api';
 import { mockCirculars as initialCirculars } from '../services/mockData';
 
 interface Circular {
-  id: string;
+  id: string | number;
   title: string;
   content: string;
-  targetAudience: string;
-  priority: string;
-  createdBy: string;
-  createdAt: string;
+  targetAudience?: string;
+  target_role?: string;
+  priority?: string;
+  createdBy?: string;
+  author?: { name: string };
+  createdAt?: string;
+  created_at?: string;
 }
 
 const CommunicationManagement: React.FC = () => {
-  const [circulars, setCirculars] = useState<Circular[]>(initialCirculars);
+  const [circulars, setCirculars] = useState<Circular[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
 
@@ -24,29 +28,49 @@ const CommunicationManagement: React.FC = () => {
     priority: 'medium'
   });
 
+  const fetchAnnouncements = async () => {
+    try {
+      const data = await announcementApi.getAnnouncements();
+      if (Array.isArray(data) && data.length > 0) {
+        setCirculars(data);
+      } else {
+        setCirculars(initialCirculars);
+      }
+    } catch (err) {
+      console.error('Error fetching announcements:', err);
+      setCirculars(initialCirculars);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
   const filteredCirculars = circulars.filter(circular =>
     circular.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     circular.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const newCircular: Circular = {
-      id: Date.now().toString(),
-      ...formData,
-      createdBy: 'Admin User',
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    setCirculars([newCircular, ...circulars]);
-    setShowModal(false);
-    setFormData({
-      title: '',
-      content: '',
-      targetAudience: 'all',
-      priority: 'medium'
-    });
+    try {
+      await announcementApi.createAnnouncement({
+        title: formData.title,
+        content: formData.content,
+        target_role: formData.targetAudience === 'students' ? 'student' : formData.targetAudience === 'teachers' ? 'teacher' : formData.targetAudience === 'parents' ? 'parent' : 'all'
+      });
+      fetchAnnouncements();
+      setShowModal(false);
+      setFormData({
+        title: '',
+        content: '',
+        targetAudience: 'all',
+        priority: 'medium'
+      });
+    } catch (err: any) {
+      console.error('Error creating announcement:', err);
+      alert(err.message || 'Failed to send announcement');
+    }
   };
 
   return (
@@ -86,22 +110,22 @@ const CommunicationManagement: React.FC = () => {
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-lg font-bold text-gray-800">{circular.title}</h3>
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    circular.priority === 'high'
+                    (circular.priority || 'medium') === 'high'
                       ? 'bg-red-100 text-red-700'
-                      : circular.priority === 'medium'
+                      : (circular.priority || 'medium') === 'medium'
                       ? 'bg-orange-100 text-orange-700'
                       : 'bg-blue-100 text-blue-700'
                   }`}>
-                    {circular.priority}
+                    {circular.priority || 'medium'}
                   </span>
                 </div>
                 <p className="text-gray-600 mb-3">{circular.content}</p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">
-                    To: <span className="capitalize font-medium">{circular.targetAudience}</span>
+                    To: <span className="capitalize font-medium">{circular.target_role || circular.targetAudience || 'all'}</span>
                   </span>
                   <span className="text-gray-500">
-                    By: {circular.createdBy} | {circular.createdAt}
+                    By: {circular.author?.name || circular.createdBy || 'Admin'} | {circular.created_at ? circular.created_at.split('T')[0] : circular.createdAt || new Date().toISOString().split('T')[0]}
                   </span>
                 </div>
               </div>
