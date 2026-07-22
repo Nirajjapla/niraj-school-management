@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, BookOpen, Plus, X } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import { libraryApi } from '../services/api';
-import { mockInventory } from '../services/mockData';
 
 const InventoryManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +44,7 @@ const InventoryManagement: React.FC = () => {
     }
   };
 
-  const displayedItems = books.length > 0 ? books : mockInventory;
+  const displayedItems = books;
 
   return (
     <div>
@@ -104,6 +103,13 @@ const InventoryManagement: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-800">{item.rack_number || item.location || 'Rack 1'}</td>
                 </tr>
               ))}
+              {displayedItems.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    No books or assets found in catalog.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

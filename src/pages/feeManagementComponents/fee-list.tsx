@@ -3,8 +3,8 @@
 import type React from "react"
 import { useState, useMemo, useEffect } from "react"
 import { Search, DollarSign, Eye, Mail, ChevronLeft, ChevronRight } from "lucide-react"
-import { type Fee } from "../../services/studentMockData"
-import { feeApi, studentApi } from "../../services/api"
+import type { Fee } from "../../services/studentMockData"
+import { feeApi } from "../../services/api"
 import PaymentModal from "./payment-modal"
 
 interface FeeListProps {
@@ -52,45 +52,6 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee }) => {
         }
       });
       setStudentNames(names);
-      
-      // Seed initial fees if db is completely empty
-      if (mapped.length === 0) {
-        // Find existing students to link fees
-        const students = await studentApi.getStudents();
-        if (students.length > 0) {
-          for (let i = 0; i < Math.min(students.length, 3); i++) {
-            await feeApi.createFee({
-              student_id: students[i].id,
-              amount: 5000,
-              due_date: '2025-11-01',
-              status: i === 0 ? 'paid' : i === 1 ? 'partial' : 'unpaid'
-            });
-          }
-          // Fetch again
-          const updatedFees = await feeApi.getFees();
-          const remap = updatedFees.map((f: any) => ({
-            id: String(f.id),
-            studentId: String(f.student_id),
-            class: f.student?.class?.name || '10',
-            section: f.student?.section?.name || 'A',
-            feeType: 'Tuition',
-            totalAmount: Number(f.amount),
-            paidAmount: f.status === 'paid' ? Number(f.amount) : f.status === 'partial' ? Number(f.amount) / 2 : 0,
-            dueDate: f.due_date,
-            paidDate: f.status === 'paid' ? f.updated_at?.split('T')[0] : null,
-            status: f.status === 'unpaid' ? 'pending' : f.status,
-            monthlyBreakdown: []
-          }));
-          updatedFees.forEach((f: any) => {
-            if (f.student?.user?.name) {
-              names[String(f.student_id)] = f.student.user.name;
-            }
-          });
-          setStudentNames(names);
-          setFees(remap);
-          return;
-        }
-      }
       setFees(mapped);
     } catch (err) {
       console.error('Error fetching fees:', err);

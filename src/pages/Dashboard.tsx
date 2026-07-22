@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, DollarSign, TrendingUp, TrendingDown, Bell, Calendar } from 'lucide-react';
-import { adminApi, studentApi, teacherApi, feeApi, leaveApi, announcementApi } from '../services/api';
+import { Users, GraduationCap, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { adminApi, studentApi, teacherApi, feeApi, leaveApi } from '../services/api';
+import { mockLeaves, mockCirculars } from '../services/mockData';
 
 const Dashboard: React.FC = () => {
   const [totalStudents, setTotalStudents] = useState(0);
@@ -90,6 +91,14 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  const displayLeaves = pendingLeavesList.length > 0 
+    ? pendingLeavesList 
+    : mockLeaves.filter(leave => leave.status === 'pending');
+
+  const displayCirculars = announcementsList.length > 0 
+    ? announcementsList 
+    : mockCirculars;
+
   return (
     <div>
       <div className="mb-6">
@@ -171,23 +180,20 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Pending Approvals</h2>
           <div className="space-y-3">
-            {mockLeaves
-              .filter(leave => leave.status === 'pending')
-              .slice(0, 5)
-              .map(leave => (
-                <div key={leave.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-800">{leave.userName}</p>
-                    <p className="text-sm text-gray-600">
-                      {leave.leaveType} - {leave.fromDate} to {leave.toDate}
-                    </p>
-                  </div>
-                  <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                    Pending
-                  </span>
+            {displayLeaves.slice(0, 5).map((leave: any) => (
+              <div key={leave.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-800">{leave.userName || leave.user_name || leave.applicant_name || 'Staff'}</p>
+                  <p className="text-sm text-gray-600">
+                    {leave.leaveType || leave.leave_type} - {leave.fromDate || leave.from_date || leave.start_date} to {leave.toDate || leave.to_date || leave.end_date}
+                  </p>
                 </div>
-              ))}
-            {pendingLeaves === 0 && (
+                <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                  Pending
+                </span>
+              </div>
+            ))}
+            {displayLeaves.length === 0 && (
               <p className="text-gray-500 text-center py-4">No pending approvals</p>
             )}
           </div>
@@ -196,24 +202,27 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Recent Notifications</h2>
           <div className="space-y-3">
-            {mockCirculars.slice(0, 5).map(circular => (
+            {displayCirculars.slice(0, 5).map((circular: any) => (
               <div key={circular.id} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-start justify-between mb-1">
                   <p className="font-medium text-gray-800">{circular.title}</p>
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    circular.priority === 'high'
+                    (circular.priority || 'medium') === 'high'
                       ? 'bg-red-100 text-red-700'
-                      : circular.priority === 'medium'
+                      : (circular.priority || 'medium') === 'medium'
                       ? 'bg-orange-100 text-orange-700'
                       : 'bg-blue-100 text-blue-700'
                   }`}>
-                    {circular.priority}
+                    {circular.priority || 'medium'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">{circular.content}</p>
-                <p className="text-xs text-gray-500 mt-2">{circular.createdAt}</p>
+                <p className="text-sm text-gray-600">{circular.content || circular.message}</p>
+                <p className="text-xs text-gray-500 mt-2">{circular.createdAt || circular.created_at || circular.date}</p>
               </div>
             ))}
+            {displayCirculars.length === 0 && (
+              <p className="text-gray-500 text-center py-4">No notifications</p>
+            )}
           </div>
         </div>
       </div>
@@ -222,3 +231,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+

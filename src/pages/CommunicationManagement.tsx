@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, X } from 'lucide-react';
 import { announcementApi } from '../services/api';
-import { mockCirculars as initialCirculars } from '../services/mockData';
 
 interface Circular {
   id: string | number;
@@ -31,14 +30,10 @@ const CommunicationManagement: React.FC = () => {
   const fetchAnnouncements = async () => {
     try {
       const data = await announcementApi.getAnnouncements();
-      if (Array.isArray(data) && data.length > 0) {
-        setCirculars(data);
-      } else {
-        setCirculars(initialCirculars);
-      }
+      setCirculars(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching announcements:', err);
-      setCirculars(initialCirculars);
+      setCirculars([]);
     }
   };
 

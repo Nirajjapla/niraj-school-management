@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, X, UserCog, Layers, Award } from 'lucide-react';
-import { mockStaff as initialStaff } from '../services/mockData';
 import { designationApi, departmentApi } from '../services/api';
 
 interface Staff {
@@ -36,7 +35,7 @@ interface Department {
 
 const StaffManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'staff' | 'departments' | 'designations'>('staff');
-  const [staff, setStaff] = useState<Staff[]>(initialStaff as any as Staff[]);
+  const [staff, setStaff] = useState<Staff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [designationFilter, setDesignationFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -48,7 +47,7 @@ const StaffManagement: React.FC = () => {
   // Designation & Department States
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
 
   // Department & Designation Modals/Forms
   const [showDeptModal, setShowDeptModal] = useState(false);

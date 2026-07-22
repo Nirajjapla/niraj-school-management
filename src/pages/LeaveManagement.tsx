@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, CheckCircle, XCircle } from 'lucide-react';
 import { leaveApi } from '../services/api';
-import { mockLeaves as initialLeaves } from '../services/mockData';
 
 interface Leave {
   id: string | number;
@@ -22,22 +21,14 @@ interface Leave {
 const LeaveManagement: React.FC = () => {
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
 
   const fetchLeaves = async () => {
     try {
-      setLoading(true);
       const data = await leaveApi.getLeaves();
-      if (Array.isArray(data) && data.length > 0) {
-        setLeaves(data);
-      } else {
-        setLeaves(initialLeaves);
-      }
+      setLeaves(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching leaves:', err);
-      setLeaves(initialLeaves);
-    } finally {
-      setLoading(false);
+      setLeaves([]);
     }
   };
 

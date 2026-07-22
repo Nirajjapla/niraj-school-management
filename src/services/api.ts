@@ -1,7 +1,7 @@
-const API_BASE_URL = 
+const API_BASE_URL =
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000/api'
-    : 'http://13.234.116.27:3000/api';
+    : 'http://13.201.15.29:3000/api';
 
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');
@@ -180,23 +180,42 @@ export const examApi = {
     const res = await apiFetch(`/exams${query}`);
     return res.data || [];
   },
-  createExam: async (examData: any) => {
+  getExamById: async (id: number | string) => {
+    const res = await apiFetch(`/exams/${id}`);
+    return res.data;
+  },
+  createExam: async (examData: { name: string; class_id: number | string; start_date?: string; end_date?: string }) => {
     const res = await apiFetch('/exams', {
       method: 'POST',
       body: JSON.stringify(examData)
     });
     return res.data;
   },
-  getMarks: async (examId: number | string, subjectId?: number | string) => {
-    const query = subjectId ? `?subject_id=${subjectId}` : '';
+  updateExam: async (id: number | string, examData: Partial<{ name: string; class_id: number | string; start_date: string; end_date: string }>) => {
+    const res = await apiFetch(`/exams/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(examData)
+    });
+    return res.data;
+  },
+  deleteExam: async (id: number | string) => {
+    const res = await apiFetch(`/exams/${id}`, { method: 'DELETE' });
+    return res.data;
+  },
+  getMarks: async (examId: number | string, params?: Record<string, any>) => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
     const res = await apiFetch(`/exams/${examId}/marks${query}`);
     return res.data || [];
   },
-  recordMarks: async (examId: number | string, subjectId: number | string, records: any[]) => {
+  recordMarks: async (examId: number | string, payload: { subject_id: number | string; records: Array<{ student_id: number | string; marks_obtained: number; max_marks: number }> }) => {
     const res = await apiFetch(`/exams/${examId}/marks`, {
       method: 'POST',
-      body: JSON.stringify({ subject_id: Number(subjectId), records })
+      body: JSON.stringify(payload)
     });
+    return res.data;
+  },
+  getReportCard: async (examId: number | string, studentId: number | string) => {
+    const res = await apiFetch(`/exams/${examId}/report-card?student_id=${studentId}`);
     return res.data;
   }
 };
@@ -648,4 +667,3 @@ export const chatApi = {
     return res.data;
   }
 };
-

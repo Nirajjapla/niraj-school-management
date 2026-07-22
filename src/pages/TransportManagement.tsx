@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
 import { transportApi } from '../services/api';
-import { mockTransportation as initialTransport } from '../services/mockData';
 
 interface Transport {
   id: string | number;
@@ -21,7 +20,7 @@ const TransportManagement: React.FC = () => {
   const [transport, setTransport] = useState<Transport[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [currentTransport, setCurrentTransport] = useState<Transport | null>(null);
+  const [_currentTransport, setCurrentTransport] = useState<Transport | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Transport>>({
@@ -36,14 +35,10 @@ const TransportManagement: React.FC = () => {
   const fetchRoutes = async () => {
     try {
       const data = await transportApi.getRoutes();
-      if (Array.isArray(data) && data.length > 0) {
-        setTransport(data);
-      } else {
-        setTransport(initialTransport);
-      }
+      setTransport(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching routes:', err);
-      setTransport(initialTransport);
+      setTransport([]);
     }
   };
 
