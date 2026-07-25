@@ -1,7 +1,7 @@
 const API_BASE_URL =
-  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000/api'
-    : 'http://13.201.15.29:3000/api';
+  // window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  'http://localhost:3000/api';
+// 'http://13.201.15.29:3000/api';
 
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');
