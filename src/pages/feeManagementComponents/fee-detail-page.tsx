@@ -1,314 +1,464 @@
-import React, { useMemo, useState, useEffect } from "react"
-import { ChevronLeft, Download } from "lucide-react"
-import { feeApi } from "../../services/api"
+import React, { useState } from 'react';
+import { ChevronLeft, Download, CreditCard, CheckCircle, Sparkles } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
+import { formatRupee } from '../../styles/colors';
+import PaymentModal from './payment-modal';
 
 interface FeeDetailPageProps {
-  feeId: string
-  onBack: () => void
+  feeId: string;
+  onBack: () => void;
 }
 
 const FeeDetailPage: React.FC<FeeDetailPageProps> = ({ feeId, onBack }) => {
-  const [fee, setFee] = useState<any>(null)
-  const [student, setStudent] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [duration, setDuration] = useState<"month" | "quarter" | "half" | "year">("month")
+  const { feeRecords, students, recordPayment, overrideStudentFee } = useData();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [overrideAmount, setOverrideAmount] = useState('');
+  const [overrideRemarks, setOverrideRemarks] = useState('');
 
-  useEffect(() => {
-    const loadDetails = async () => {
-      try {
-        const feesList = await feeApi.getFees()
-        const targetFee = feesList.find((item: any) => String(item.id) === feeId)
-        if (targetFee) {
-          setFee({
-            id: String(targetFee.id),
-            studentId: String(targetFee.student_id),
-            class: targetFee.student?.class?.name || '10',
-            section: targetFee.student?.section?.name || 'A',
-            feeType: 'Tuition',
-            totalAmount: Number(targetFee.amount),
-            paidAmount: targetFee.status === 'paid' ? Number(targetFee.amount) : targetFee.status === 'partial' ? Number(targetFee.amount) / 2 : 0,
-            dueDate: targetFee.due_date,
-            paidDate: targetFee.status === 'paid' ? targetFee.updated_at?.split('T')[0] : null,
-            status: targetFee.status === 'unpaid' ? 'pending' : targetFee.status,
-            monthlyBreakdown: []
-          })
+  const fee = feeRecords.find((item) => item.id === feeId);
+  const student = fee ? students.find((s) => s.id === fee.studentId) : null;
 
-          setStudent({
-            firstName: targetFee.student?.user?.name?.split(' ')[0] || 'Student',
-            lastName: targetFee.student?.user?.name?.split(' ').slice(1).join(' ') || '',
-            class: targetFee.student?.class?.name || '10',
-            section: targetFee.student?.section?.name || 'A',
-            email: targetFee.student?.user?.email || 'student@school.com'
-          })
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadDetails()
-  }, [feeId])
-
-  const filteredBreakdown: any[] = useMemo(() => {
-    const monthCount = {
-      month: 1,
-      quarter: 3,
-      half: 6,
-      year: 12,
-    }[duration]
-
-    // Fallback empty array since we don't have monthly breakups stored in db
-    return fee?.monthlyBreakdown?.slice(0, monthCount) || []
-  }, [fee, duration])
-
-  if (isLoading) {
+  if (!fee) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Loading details...</p>
+        <p className="text-gray-600 dark:text-slate-400">Fee record not found</p>
+        <button onClick={onBack} className="mt-4 px-4 py-2 bg-[#4e74f9] text-white rounded-lg">
+          Back to Fee List
+        </button>
       </div>
-    )
+    );
   }
 
-  if (!fee || !student) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-600">Fee not found</p>
-      </div>
-    )
-  }
-
-  const totalBreakdownAmount = filteredBreakdown.reduce((sum, m) => sum + m.amount, 0)
-  const totalBreakdownPaid = filteredBreakdown.reduce((sum, m) => sum + m.paidAmount, 0)
+  const outstanding = Math.max(0, fee.totalAmount - fee.paidAmount);
 
   const handleDownloadDetailedReceipt = () => {
     const receiptContent = `
-FEE DETAIL RECEIPT
-=====================================
-Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
+=====================================================
+            SCHOOL ERP - DETAILED FEE STATEMENT
+=====================================================
+Generated On: ${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString()}
 
-STUDENT INFORMATION:
-Name: ${student.firstName} ${student.lastName}
-Class: ${student.class}
-Section: ${student.section}
-Email: ${student.email}
+STUDENT PROFILE:
+Name: ${fee.studentName}
+Student ID: ${student?.studentId || 'N/A'}
+Class: ${fee.class} | Section: ${fee.section}
+Roll Number: ${student?.rollNumber || 'N/A'}
+Category: ${fee.category === 'reservation' ? 'Reservation / Concession Category' : 'Normal Student'}
+Parent/Guardian: ${student?.parentName || 'N/A'} (${student?.parentPhone || 'N/A'})
 
-FEE SUMMARY:
-Fee Type: ${fee.feeType}
-Total Amount: $${fee.totalAmount.toLocaleString()}
-Total Paid Amount: $${fee.paidAmount.toLocaleString()}
-Outstanding: $${(fee.totalAmount - fee.paidAmount).toLocaleString()}
+FEE BREAKDOWN:
+Fee Type: Composite Fee (Mandatory Base Fee)
+Collection Cycle: ${fee.collectionFrequency}
+Monthly Base: ${formatRupee(fee.monthlyFee)}
+Quarterly Base: ${formatRupee(fee.quarterlyFee)}
+Annual Total: ${formatRupee(fee.annualFee)}
+
+CURRENT DUES & PAYMENTS:
+Total Fee Applicable: ${formatRupee(fee.totalAmount)}
+Total Amount Paid: ${formatRupee(fee.paidAmount)}
+Outstanding Balance: ${formatRupee(outstanding)}
+Due Date: ${fee.dueDate}
 Status: ${fee.status.toUpperCase()}
+${fee.overrideAmount ? `\nSPECIAL OVERRIDE:\nCustom Override: ${formatRupee(fee.overrideAmount)}\nRemarks: ${fee.overrideRemarks || 'Approved by Principal'}` : ''}
 
-MONTHLY BREAKDOWN (${duration.toUpperCase()}):
-=====================================
-${filteredBreakdown
-  .map(
-    (month) => `
-${month.month}
-  Amount: $${month.amount.toLocaleString()}
-  Paid: $${month.paidAmount.toLocaleString()}
-  Status: ${month.status.toUpperCase()}
-  Due Date: ${month.dueDate}`,
-  )
-  .join("\n")}
+=====================================================
+Generated by School ERP System
+    `;
 
-TOTALS FOR SELECTED PERIOD:
-Total Amount: $${totalBreakdownAmount.toLocaleString()}
-Total Paid: $${totalBreakdownPaid.toLocaleString()}
-Outstanding: $${(totalBreakdownAmount - totalBreakdownPaid).toLocaleString()}
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(receiptContent));
+    element.setAttribute('download', `fee-statement-${fee.studentName.replace(/\s+/g, '_')}-${Date.now()}.txt`);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
-=====================================
-Report ID: REP-${Date.now()}
-    `
-
-    const element = document.createElement("a")
-    element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(receiptContent))
-    element.setAttribute("download", `fee-detail-${student.firstName}-${Date.now()}.txt`)
-    element.style.display = "none"
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
-  }
+  const handleApplyOverride = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(overrideAmount);
+    if (!isNaN(amount) && amount >= 0) {
+      overrideStudentFee(fee.studentId, amount, overrideRemarks);
+      setShowOverrideModal(false);
+    }
+  };
 
   return (
-    <div>
-      <button onClick={onBack} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6 transition">
-        <ChevronLeft className="w-5 h-5" />
-        Back to Fee List
-      </button>
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-[#4e74f9] hover:text-[#3d5fd8] font-medium transition"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          Back to Fee List
+        </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Student Information Card */}
-        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Student Information</h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-start">
-              <span className="text-gray-600">Name:</span>
-              <span className="font-medium text-gray-900 text-right">
-                {student.firstName} {student.lastName}
-              </span>
-            </div>
-            <div className="flex justify-between items-start">
-              <span className="text-gray-600">Class:</span>
-              <span className="font-medium text-gray-900">{student.class}</span>
-            </div>
-            <div className="flex justify-between items-start">
-              <span className="text-gray-600">Section:</span>
-              <span className="font-medium text-gray-900">{student.section}</span>
-            </div>
-            <div className="flex justify-between items-start">
-              <span className="text-gray-600">Email:</span>
-              <span className="font-medium text-gray-900 text-right text-sm">{student.email}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Fee Summary Card */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Fee Summary</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-gray-600 text-sm">Fee Type</p>
-              <p className="text-gray-900 font-medium mt-1">{fee.feeType}</p>
-            </div>
-            <div>
-              <p className="text-gray-600 text-sm">Total Amount</p>
-              <p className="text-blue-600 font-bold text-lg mt-1">${fee.totalAmount.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-gray-600 text-sm">Paid Amount</p>
-              <p className="text-green-600 font-bold text-lg mt-1">${fee.paidAmount.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-gray-600 text-sm">Outstanding</p>
-              <p className="text-orange-600 font-bold text-lg mt-1">
-                ${(fee.totalAmount - fee.paidAmount).toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600 text-sm">Due Date</p>
-              <p className="text-gray-900 font-medium mt-1">{fee.dueDate}</p>
-            </div>
-            <div>
-              <p className="text-gray-600 text-sm">Status</p>
-              <span
-                className={`inline-block mt-1 px-3 py-1 text-xs font-medium rounded-full ${
-                  fee.status === "paid"
-                    ? "bg-green-100 text-green-700"
-                    : fee.status === "partial"
-                      ? "bg-blue-100 text-blue-700"
-                      : fee.status === "overdue"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-orange-100 text-orange-700"
-                }`}
-              >
-                {fee.status.charAt(0).toUpperCase() + fee.status.slice(1)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Monthly Breakdown */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900">
-            Fee Breakup -{" "}
-            {duration === "month"
-              ? "Monthly"
-              : duration === "quarter"
-                ? "Quarterly"
-                : duration === "half"
-                  ? "Half Yearly"
-                  : "Yearly"}
-          </h2>
-          <div className="flex gap-2">
-            {(["month", "quarter", "half", "year"] as const).map((dur) => (
-              <button
-                key={dur}
-                onClick={() => setDuration(dur)}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
-                  duration === dur ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {dur === "month" ? "Month" : dur === "quarter" ? "Quarter" : dur === "half" ? "Half Year" : "Full Year"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Breakdown Table */}
-        <div className="overflow-x-auto mb-6">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Month</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-700">Amount</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-700">Paid Amount</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-700">Outstanding</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredBreakdown.map((month, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-900 font-medium">{month.month}</td>
-                  <td className="px-4 py-3 text-right text-gray-900 font-medium">${month.amount.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-green-600 font-medium">
-                    ${month.paidAmount.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-right text-orange-600 font-medium">
-                    ${(month.amount - month.paidAmount).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
-                        month.status === "paid"
-                          ? "bg-green-100 text-green-700"
-                          : month.status === "partial"
-                            ? "bg-blue-100 text-blue-700"
-                            : month.status === "overdue"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-orange-100 text-orange-700"
-                      }`}
-                    >
-                      {month.status.charAt(0).toUpperCase() + month.status.slice(1)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Total Amount:</span>
-            <span className="font-bold text-gray-900">${totalBreakdownAmount.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Total Paid:</span>
-            <span className="font-bold text-green-600">${totalBreakdownPaid.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Outstanding:</span>
-            <span className="font-bold text-orange-600">
-              ${(totalBreakdownAmount - totalBreakdownPaid).toLocaleString()}
-            </span>
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setOverrideAmount(fee.totalAmount.toString());
+              setOverrideRemarks(fee.overrideRemarks || '');
+              setShowOverrideModal(true);
+            }}
+            className="px-3.5 py-2 border border-purple-300 dark:border-purple-800/60 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded-xl text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900/40 transition flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Fee Override
+          </button>
+          
           <button
             onClick={handleDownloadDetailedReceipt}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+            className="px-3.5 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
             Download Report
           </button>
+
+          {outstanding > 0 && (
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="px-4 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-sm"
+            >
+              <CreditCard className="w-4 h-4" />
+              Pay Now
+            </button>
+          )}
         </div>
       </div>
-    </div>
-  )
-}
 
-export default FeeDetailPage
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Student Information */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center justify-between">
+            <span>Student Information</span>
+            <span
+              className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                fee.category === 'reservation'
+                  ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                  : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+              }`}
+            >
+              {fee.category === 'reservation' ? 'Reservation / Concession' : 'Normal Student'}
+            </span>
+          </h2>
+          <div className="space-y-3.5 text-sm">
+            <div className="flex justify-between items-center py-1 border-b border-gray-50 dark:border-slate-800/60">
+              <span className="text-gray-500 dark:text-slate-400">Full Name:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{fee.studentName}</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-gray-50 dark:border-slate-800/60">
+              <span className="text-gray-500 dark:text-slate-400">Class & Section:</span>
+              <span className="font-medium text-gray-800 dark:text-slate-200">Class {fee.class} ({fee.section})</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-gray-50 dark:border-slate-800/60">
+              <span className="text-gray-500 dark:text-slate-400">Roll Number:</span>
+              <span className="font-medium text-gray-800 dark:text-slate-200">{student?.rollNumber || '01'}</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-gray-50 dark:border-slate-800/60">
+              <span className="text-gray-500 dark:text-slate-400">Parent / Guardian:</span>
+              <span className="font-medium text-gray-800 dark:text-slate-200">{student?.parentName || 'Parent'}</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-gray-50 dark:border-slate-800/60">
+              <span className="text-gray-500 dark:text-slate-400">Parent Contact:</span>
+              <span className="font-medium text-gray-800 dark:text-slate-200">{student?.parentPhone || '+91 98765 00000'}</span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-gray-500 dark:text-slate-400">Emergency Phone:</span>
+              <span className="font-medium text-gray-800 dark:text-slate-200">{student?.emergencyContact || '-'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Fee Summary */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Fee Summary</h2>
+            <span
+              className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                fee.status === 'paid'
+                  ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                  : fee.status === 'partial'
+                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                  : fee.status === 'overdue'
+                  ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
+                  : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+              }`}
+            >
+              {fee.status.toUpperCase()}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Fee Type</p>
+              <p className="text-base font-bold text-gray-900 dark:text-white mt-1">Composite Fee</p>
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">Frequency: {fee.collectionFrequency}</p>
+            </div>
+
+            <div className="bg-blue-50/70 dark:bg-blue-950/40 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
+              <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">Total Applicable Fee</p>
+              <p className="text-xl font-extrabold text-blue-700 dark:text-blue-300 mt-1">{formatRupee(fee.totalAmount)}</p>
+              {fee.overrideAmount && (
+                <p className="text-[11px] text-purple-600 dark:text-purple-400 mt-0.5">Custom Override Active</p>
+              )}
+            </div>
+
+            <div className="bg-emerald-50/70 dark:bg-emerald-950/40 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Paid Amount</p>
+              <p className="text-xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1">{formatRupee(fee.paidAmount)}</p>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {fee.paidDate ? `Last paid: ${fee.paidDate}` : 'No payment recorded'}
+              </p>
+            </div>
+
+            <div className="bg-amber-50/70 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30">
+              <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">Outstanding Balance</p>
+              <p className="text-xl font-extrabold text-amber-700 dark:text-amber-300 mt-1">{formatRupee(outstanding)}</p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">Due Date: {fee.dueDate}</p>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Monthly Projection</p>
+              <p className="text-lg font-bold text-gray-800 dark:text-slate-200 mt-1">{formatRupee(fee.monthlyFee)}</p>
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">Per month rate</p>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Annual Projection</p>
+              <p className="text-lg font-bold text-gray-800 dark:text-slate-200 mt-1">{formatRupee(fee.annualFee)}</p>
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">Full academic year</p>
+            </div>
+          </div>
+
+          {fee.overrideRemarks && (
+            <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 rounded-xl text-xs text-purple-800 dark:text-purple-300">
+              <span className="font-bold">Override Note:</span> {fee.overrideRemarks}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 12-Month Academic Year Installment Matrix (Apr - Mar) */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              12-Month Academic Installment Schedule (2026 - 2027)
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+              Installment due breakdown on the 10th of every academic month
+            </p>
+          </div>
+          <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-lg">
+            Collection Cycle: {fee.collectionFrequency}
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">Month</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">Due Date</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-slate-300">Monthly Dues</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-slate-300">Paid</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-slate-300">Status</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-slate-300">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {[
+                { month: 'April 2026', due: '10 Apr 2026', order: 1 },
+                { month: 'May 2026', due: '10 May 2026', order: 2 },
+                { month: 'June 2026', due: '10 Jun 2026', order: 3 },
+                { month: 'July 2026', due: '10 Jul 2026', order: 4 },
+                { month: 'August 2026', due: '10 Aug 2026', order: 5 },
+                { month: 'September 2026', due: '10 Sep 2026', order: 6 },
+                { month: 'October 2026', due: '10 Oct 2026', order: 7 },
+                { month: 'November 2026', due: '10 Nov 2026', order: 8 },
+                { month: 'December 2026', due: '10 Dec 2026', order: 9 },
+                { month: 'January 2027', due: '10 Jan 2027', order: 10 },
+                { month: 'February 2027', due: '10 Feb 2027', order: 11 },
+                { month: 'March 2027', due: '10 Mar 2027', order: 12 }
+              ].map((inst) => {
+                const monthlyShare = Math.round(fee.totalAmount / 12);
+                const cumPaid = fee.paidAmount;
+                const paidSoFarForThisMonth = Math.min(monthlyShare, Math.max(0, cumPaid - (inst.order - 1) * monthlyShare));
+                const isFullyPaid = paidSoFarForThisMonth >= monthlyShare;
+                const isPartiallyPaid = paidSoFarForThisMonth > 0 && !isFullyPaid;
+                const isOverdue = !isFullyPaid && inst.order <= 5; // e.g. past months
+
+                return (
+                  <tr key={inst.month} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40">
+                    <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{inst.month}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400 text-xs">{inst.due}</td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
+                      {formatRupee(monthlyShare)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">
+                      {formatRupee(paidSoFarForThisMonth)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        isFullyPaid
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                          : isPartiallyPaid
+                          ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                          : isOverdue
+                          ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
+                          : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                      }`}>
+                        {isFullyPaid ? 'PAID' : isPartiallyPaid ? 'PARTIAL' : isOverdue ? 'OVERDUE' : 'DUE'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {!isFullyPaid ? (
+                        <button
+                          onClick={() => setShowPaymentModal(true)}
+                          className="px-2.5 py-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-lg transition"
+                        >
+                          Pay
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400">Cleared</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Transaction & Receipt Logs */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+          Transaction & Payment Logs
+        </h3>
+
+        {fee.paidAmount > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">Receipt Ref</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">Date & Time</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">Mode</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-slate-300">Amount Paid</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">Collected By</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-slate-300">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                <tr className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40">
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-[#4e74f9]">
+                    RCP-2026-08149
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-400 text-xs">
+                    {fee.paidDate || '12 Apr 2026, 11:30 AM'}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-slate-300 text-xs font-medium">
+                    Online / UPI
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatRupee(fee.paidAmount)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-400 text-xs">
+                    Admin Cashier (Front Desk)
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                      SUCCESS
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500 dark:text-slate-400 py-3 text-center">
+            No payments recorded yet for this student. Use the "Pay Now" button to collect payment.
+          </p>
+        )}
+      </div>
+
+      {/* Override Modal */}
+      {showOverrideModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Student Fee Override</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
+              Set a customized fee amount for {fee.studentName} (Class {fee.class}-{fee.section}).
+            </p>
+
+            <form onSubmit={handleApplyOverride} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                  Custom Total Fee Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  value={overrideAmount}
+                  onChange={(e) => setOverrideAmount(e.target.value)}
+                  min="0"
+                  className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                  Reason / Approval Remarks *
+                </label>
+                <textarea
+                  value={overrideRemarks}
+                  onChange={(e) => setOverrideRemarks(e.target.value)}
+                  placeholder="e.g. Sibling discount 15%, Principal special waiver, Merit scholarship"
+                  rows={3}
+                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOverrideModal(false)}
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-medium transition shadow-sm"
+                >
+                  Save Override
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          fee={fee}
+          studentName={fee.studentName}
+          onClose={() => setShowPaymentModal(false)}
+          onSubmit={(amount, remarks) => {
+            recordPayment(fee.id, amount, remarks);
+            setShowPaymentModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default FeeDetailPage;

@@ -1,162 +1,100 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, X } from 'lucide-react';
-import { studentApi, classApi } from '../services/api';
+import React, { useState, useRef } from 'react';
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  X,
+  ShieldCheck,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  Bus,
+  Users,
+  MapPin,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
+import { useData } from '../contexts/DataContext';
+import { Student, indianStates } from '../services/centralData';
 
-interface Student {
-  id: string;
-  studentId: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  gender: string;
-  class: string;
-  section: string;
-  rollNumber: string;
-  admissionDate: string;
-  parentName: string;
-  parentPhone: string;
-  parentEmail: string;
-  // address broken into parts
-  houseAddress: string;
-  city: string;
-  state: string;
-  pinCode: string;
-  // new fields
-  emergencyContact?: string;
-  bloodGroup?: string;
-  // teacher info
-  classTeacher?: string;
-  associateTeacher?: string;
-}
-
-const classOptions = ['1','2','3','4','5','6','7','8','9','10','11','12'];
-const sectionOptions = ['A','B','C','D','E'];
-const bloodGroups = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+const prePrimaryClasses = ['Nursery', 'LKG', 'UKG'];
+const primaryAndSecClasses = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const sectionOptions = ['A', 'B', 'C', 'D'];
 
 const StudentManagement: React.FC = () => {
-  const [students, setStudents] = useState<Student[]>([]);
+  const { students, transportRoutes, addStudent, updateStudent, deleteStudent } = useData();
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterClass, setFilterClass] = useState<string>('');
+  const [filterCategory, setFilterCategory] = useState<string>('');
+  
+  // Modals
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-
-  const [filterClass, setFilterClass] = useState<string>('');
-  const [filterSection, setFilterSection] = useState<string>('');
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
 
-  const [dbClasses, setDbClasses] = useState<any[]>([]);
-  const [dbSections, setDbSections] = useState<any[]>([]);
+  // CSV Import State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvText, setCsvText] = useState('');
+  const [parsedCsvData, setParsedCsvData] = useState<Array<Partial<Student>>>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Student>>({
     firstName: '',
     lastName: '',
     dateOfBirth: '',
     gender: 'Male',
-    class: '',
-    section: '',
+    class: 'Nursery',
+    section: 'A',
+    category: 'normal',
     rollNumber: '',
-    admissionDate: '',
+    admissionDate: new Date().toISOString().split('T')[0],
     parentName: '',
     parentPhone: '',
     parentEmail: '',
+    fatherName: '',
+    motherName: '',
+    fatherPhone: '',
+    motherPhone: '',
     houseAddress: '',
-    city: '',
-    state: '',
-    pinCode: '',
+    city: 'New Delhi',
+    state: 'Delhi',
+    pinCode: '110001',
     emergencyContact: '',
-    bloodGroup: '',
+    bloodGroup: 'B+',
     classTeacher: '',
-    associateTeacher: ''
+    busRouteId: '',
+    isAvailingTransport: false
   });
 
-  const ensureClassesAndSections = async () => {
-    try {
-      let classes = await classApi.getClasses();
-      if (classes.length === 0) {
-        for (const name of classOptions) {
-          await classApi.createClass(name);
-        }
-        classes = await classApi.getClasses();
-      }
-      setDbClasses(classes);
-
-      let sections = await classApi.getSections();
-      if (sections.length === 0) {
-        for (const cls of classes) {
-          for (const secName of sectionOptions) {
-            await classApi.createSection(cls.id, secName);
-          }
-        }
-        sections = await classApi.getSections();
-      }
-      setDbSections(sections);
-      return { classes, sections };
-    } catch (err) {
-      console.error('Error seeding classes/sections:', err);
-      return { classes: [], sections: [] };
-    }
-  };
-
-  const fetchStudents = async () => {
-    try {
-      const { classes, sections } = await ensureClassesAndSections();
-      
-      let classId = undefined;
-      if (filterClass) {
-        const clsObj = classes.find((c: any) => c.name === filterClass);
-        if (clsObj) classId = clsObj.id;
-      }
-
-      let sectionId = undefined;
-      if (filterSection && classId) {
-        const secObj = sections.find((s: any) => s.name === filterSection && s.class_id === classId);
-        if (secObj) sectionId = secObj.id;
-      }
-
-      const backendStudents = await studentApi.getStudents(classId, sectionId);
-      
-      const mapped = backendStudents.map((s: any) => {
-        const nameParts = (s.user?.name || '').split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-        
-        return {
-          id: String(s.id),
-          studentId: s.admission_number || '',
-          firstName,
-          lastName,
-          dateOfBirth: s.dob || '',
-          gender: s.gender ? (s.gender.charAt(0).toUpperCase() + s.gender.slice(1)) : 'Male',
-          class: s.class?.name || '',
-          section: s.section?.name || '',
-          rollNumber: s.admission_number ? s.admission_number.replace(/\D/g, '') || '101' : '101',
-          admissionDate: s.created_at ? s.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-          parentName: s.guardian?.name || '',
-          parentPhone: '+1234567890',
-          parentEmail: s.guardian?.email || '',
-          houseAddress: '',
-          city: '',
-          state: '',
-          pinCode: ''
-        };
-      });
-      
-      setStudents(mapped);
-    } catch (err) {
-      console.error('Failed to fetch students:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchStudents();
-  }, [filterClass, filterSection]);
-
   const filteredStudents = students.filter(student => {
-    return [student.firstName, student.lastName, student.studentId, student.class]
-      .join(' ').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = [
+      student.firstName,
+      student.lastName,
+      student.studentId,
+      student.class,
+      student.parentName,
+      student.fatherName,
+      student.motherName
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    const matchesClass = !filterClass || student.class === filterClass;
+    const matchesCategory = !filterCategory || student.category === filterCategory;
+
+    return matchesSearch && matchesClass && matchesCategory;
   });
 
   const handleAdd = () => {
@@ -164,23 +102,29 @@ const StudentManagement: React.FC = () => {
     setFormData({
       firstName: '',
       lastName: '',
-      dateOfBirth: '',
+      dateOfBirth: '2019-05-15',
       gender: 'Male',
-      class: '',
-      section: '',
-      rollNumber: '',
-      admissionDate: '',
+      class: 'Nursery',
+      section: 'A',
+      category: 'normal',
+      rollNumber: String(students.length + 1).padStart(2, '0'),
+      admissionDate: new Date().toISOString().split('T')[0],
       parentName: '',
       parentPhone: '',
       parentEmail: '',
+      fatherName: '',
+      motherName: '',
+      fatherPhone: '',
+      motherPhone: '',
       houseAddress: '',
-      city: '',
-      state: '',
-      pinCode: '',
+      city: 'New Delhi',
+      state: 'Delhi',
+      pinCode: '110001',
       emergencyContact: '',
-      bloodGroup: '',
+      bloodGroup: 'B+',
       classTeacher: '',
-      associateTeacher: ''
+      busRouteId: '',
+      isAvailingTransport: false
     });
     setShowModal(true);
   };
@@ -188,7 +132,14 @@ const StudentManagement: React.FC = () => {
   const handleEdit = (student: Student) => {
     setIsEditing(true);
     setCurrentStudent(student);
-    setFormData(student);
+    setFormData({
+      ...student,
+      fatherName: student.fatherName || student.parentName || '',
+      motherName: student.motherName || '',
+      fatherPhone: student.fatherPhone || student.parentPhone || '',
+      motherPhone: student.motherPhone || '',
+      state: student.state || 'Delhi'
+    });
     setShowModal(true);
   };
 
@@ -202,227 +153,391 @@ const StudentManagement: React.FC = () => {
     setShowConfirm(true);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!toDeleteId) return;
-    try {
-      await studentApi.deleteStudent(toDeleteId);
-      setShowConfirm(false);
-      setToDeleteId(null);
-      fetchStudents();
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Failed to delete student');
-    }
+    deleteStudent(toDeleteId);
+    setShowConfirm(false);
+    setToDeleteId(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const required = ['firstName','lastName','dateOfBirth','class','section','rollNumber','admissionDate','parentName','parentPhone'];
-    for (const key of required) {
-      // @ts-ignore
-      if (!formData[key]) {
-        alert(`Please fill ${key}`);
-        return;
-      }
+    if (!formData.firstName || !formData.lastName || !formData.class) {
+      alert('Please fill all mandatory fields (First Name, Last Name, Class)');
+      return;
     }
 
-    try {
-      const clsObj = dbClasses.find(c => c.name === formData.class);
-      const classId = clsObj ? clsObj.id : null;
-      
-      const secObj = dbSections.find(s => s.name === formData.section && s.class_id === classId);
-      const sectionId = secObj ? secObj.id : null;
+    const parentName = formData.parentName || formData.fatherName || formData.motherName || 'Parent';
+    const parentPhone = formData.parentPhone || formData.fatherPhone || formData.motherPhone || '9876543210';
+    const parentEmail = formData.parentEmail || `${formData.firstName?.toLowerCase()}@example.com`;
 
-      if (!classId || !sectionId) {
-        alert('Invalid Class or Section selected');
-        return;
-      }
-
-      const email = `${formData.firstName?.toLowerCase()}.${formData.lastName?.toLowerCase()}@school.com`;
-
-      const payload = {
-        name: `${formData.firstName} ${formData.lastName}`,
-        email,
-        password: 'student123',
-        admission_number: formData.rollNumber ? `STU${formData.rollNumber}` : `STU${Date.now().toString().slice(-4)}`,
-        dob: formData.dateOfBirth,
-        gender: (formData.gender || 'Male').toLowerCase(),
-        class_id: classId,
-        section_id: sectionId,
-        guardian: {
-          name: formData.parentName,
-          email: formData.parentEmail || `${formData.parentName?.toLowerCase().replace(/\s+/g, '')}@example.com`,
-          password: 'parent123'
-        }
-      };
-
-      if (isEditing && currentStudent) {
-        await studentApi.updateStudent(currentStudent.id, {
-          name: payload.name,
-          email,
-          admission_number: payload.admission_number,
-          dob: payload.dob,
-          gender: payload.gender,
-          class_id: classId,
-          section_id: sectionId
-        });
-      } else {
-        await studentApi.createStudent(payload);
-      }
-
-      setShowModal(false);
-      setCurrentStudent(null);
-      fetchStudents();
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Operation failed');
+    if (isEditing && currentStudent) {
+      updateStudent(currentStudent.id, {
+        ...formData,
+        parentName,
+        parentPhone,
+        parentEmail
+      });
+    } else {
+      addStudent({
+        studentId: formData.studentId || `STU2026${String(students.length + 1).padStart(3, '0')}`,
+        firstName: formData.firstName!,
+        lastName: formData.lastName!,
+        dateOfBirth: formData.dateOfBirth || '2018-01-01',
+        gender: formData.gender || 'Male',
+        class: formData.class || 'Nursery',
+        section: formData.section || 'A',
+        category: formData.category || 'normal',
+        rollNumber: formData.rollNumber || '01',
+        admissionDate: formData.admissionDate || new Date().toISOString().split('T')[0],
+        parentName,
+        parentPhone,
+        parentEmail,
+        fatherName: formData.fatherName || parentName,
+        motherName: formData.motherName || '',
+        fatherPhone: formData.fatherPhone || parentPhone,
+        motherPhone: formData.motherPhone || '',
+        houseAddress: formData.houseAddress || '',
+        city: formData.city || 'New Delhi',
+        state: formData.state || 'Delhi',
+        pinCode: formData.pinCode || '110001',
+        emergencyContact: formData.emergencyContact || parentPhone,
+        bloodGroup: formData.bloodGroup || 'B+',
+        classTeacher: formData.classTeacher,
+        busRouteId: formData.busRouteId,
+        isAvailingTransport: formData.isAvailingTransport || false
+      });
     }
+
+    setShowModal(false);
+    setCurrentStudent(null);
   };
 
-  // handle excel import (uses dynamic import of xlsx so bundlers can include it)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    try {
-      const XLSX = await import('xlsx');
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const json: any[] = XLSX.utils.sheet_to_json(sheet);
+  // CSV Template Generation
+  const sampleCsvContent = `studentId,firstName,lastName,dateOfBirth,gender,class,section,category,rollNumber,fatherName,motherName,fatherPhone,motherPhone,houseAddress,city,state,pinCode,bloodGroup,isAvailingTransport,busRouteId
+STU2026801,Aarav,Kapoor,2017-04-12,Male,5,A,normal,21,Rajesh Kapoor,Sunita Kapoor,+91 9876543211,+91 9876543212,Flat 402 Palm Heights,New Delhi,Delhi,110001,B+,true,tr-1
+STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja Sharma,+91 9876543213,+91 9876543214,H-24 Green Park,New Delhi,Delhi,110016,O+,false,`;
 
-      // Map rows to Student (expecting header names matching keys)
-      const imported = json.map((row, idx) => ({
-        id: Date.now().toString() + idx,
-        studentId: row.studentId || `IMP${String(students.length + idx + 1).padStart(3,'0')}`,
-        firstName: row.firstName || row.FirstName || '',
-        lastName: row.lastName || row.LastName || '',
-        dateOfBirth: row.dateOfBirth || row.DateOfBirth || '',
-        gender: row.gender || 'Male',
-        class: String(row.class || row.Class || ''),
-        section: String(row.section || row.Section || ''),
-        rollNumber: String(row.rollNumber || row.RollNumber || ''),
-        admissionDate: row.admissionDate || row.AdmissionDate || '',
-        parentName: row.parentName || row.ParentName || '',
-        parentPhone: row.parentPhone || row.ParentPhone || '',
-        parentEmail: row.parentEmail || row.ParentEmail || '',
-        houseAddress: row.houseAddress || row.HouseAddress || '',
-        city: row.city || row.City || '',
-        state: row.state || row.State || '',
-        pinCode: row.pinCode || row.PinCode || '',
-        emergencyContact: row.emergencyContact || row.EmergencyContact || '',
-        bloodGroup: row.bloodGroup || row.BloodGroup || '',
-        classTeacher: row.classTeacher || row.ClassTeacher || '',
-        associateTeacher: row.associateTeacher || row.AssociateTeacher || ''
-      })) as Student[];
+  const handleDownloadSampleCsv = () => {
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(sampleCsvContent));
+    element.setAttribute('download', 'student_bulk_import_template.csv');
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
-      setStudents(prev => [...prev, ...imported]);
-      // clear file input
-      e.currentTarget.value = '';
-    } catch (err) {
-      console.error(err);
-      alert('Failed to import file. Make sure xlsx library is installed and the file is a valid Excel file.');
+  const parseCsvText = (text: string) => {
+    const lines = text.trim().split('\n').filter(line => line.trim().length > 0);
+    if (lines.length < 2) {
+      setImportErrors(['CSV file must contain at least a header row and one data row.']);
+      setParsedCsvData([]);
+      return;
     }
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    const results: Array<Partial<Student>> = [];
+    const errors: string[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      if (values.length < 3) continue;
+
+      const rowData: any = {};
+      headers.forEach((h, idx) => {
+        rowData[h] = values[idx] || '';
+      });
+
+      if (!rowData.firstName || !rowData.lastName) {
+        errors.push(`Row ${i + 1}: Missing required firstName or lastName.`);
+        continue;
+      }
+
+      const parentName = rowData.parentName || rowData.fatherName || rowData.motherName || 'Parent';
+      const parentPhone = rowData.parentPhone || rowData.fatherPhone || rowData.motherPhone || '+91 9876543210';
+      const isAvailingTransport = String(rowData.isAvailingTransport).toLowerCase() === 'true' || String(rowData.isAvailingTransport).toLowerCase() === 'yes';
+
+      results.push({
+        studentId: rowData.studentId || `STU2026${String(students.length + results.length + 1).padStart(3, '0')}`,
+        firstName: rowData.firstName,
+        lastName: rowData.lastName,
+        dateOfBirth: rowData.dateOfBirth || '2017-01-01',
+        gender: (rowData.gender as any) || 'Male',
+        class: rowData.class || '1',
+        section: rowData.section || 'A',
+        category: rowData.category === 'reservation' ? 'reservation' : 'normal',
+        rollNumber: rowData.rollNumber || String(results.length + 1),
+        admissionDate: rowData.admissionDate || new Date().toISOString().split('T')[0],
+        parentName,
+        parentPhone,
+        parentEmail: rowData.parentEmail || `${rowData.firstName.toLowerCase()}@example.com`,
+        fatherName: rowData.fatherName || parentName,
+        motherName: rowData.motherName || '',
+        fatherPhone: rowData.fatherPhone || parentPhone,
+        motherPhone: rowData.motherPhone || '',
+        houseAddress: rowData.houseAddress || '',
+        city: rowData.city || 'New Delhi',
+        state: rowData.state || 'Delhi',
+        pinCode: rowData.pinCode || '110001',
+        emergencyContact: rowData.emergencyContact || parentPhone,
+        bloodGroup: rowData.bloodGroup || 'B+',
+        busRouteId: rowData.busRouteId || '',
+        isAvailingTransport
+      });
+    }
+
+    setImportErrors(errors);
+    setParsedCsvData(results);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      setCsvText(text);
+      parseCsvText(text);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConfirmImport = () => {
+    if (parsedCsvData.length === 0) {
+      alert('No valid rows found to import.');
+      return;
+    }
+
+    parsedCsvData.forEach(student => {
+      addStudent({
+        studentId: student.studentId!,
+        firstName: student.firstName!,
+        lastName: student.lastName!,
+        dateOfBirth: student.dateOfBirth || '2017-01-01',
+        gender: student.gender || 'Male',
+        class: student.class || '1',
+        section: student.section || 'A',
+        category: student.category || 'normal',
+        rollNumber: student.rollNumber || '01',
+        admissionDate: student.admissionDate || new Date().toISOString().split('T')[0],
+        parentName: student.parentName || 'Parent',
+        parentPhone: student.parentPhone || '+91 9876543210',
+        parentEmail: student.parentEmail || 'parent@example.com',
+        fatherName: student.fatherName,
+        motherName: student.motherName,
+        fatherPhone: student.fatherPhone,
+        motherPhone: student.motherPhone,
+        houseAddress: student.houseAddress || '',
+        city: student.city || 'New Delhi',
+        state: student.state || 'Delhi',
+        pinCode: student.pinCode || '110001',
+        emergencyContact: student.emergencyContact || '+91 9876543210',
+        bloodGroup: student.bloodGroup || 'B+',
+        busRouteId: student.busRouteId,
+        isAvailingTransport: student.isAvailingTransport || false
+      });
+    });
+
+    setImportSuccessMsg(`Successfully imported ${parsedCsvData.length} students into the school registry.`);
+    setTimeout(() => {
+      setShowImportModal(false);
+      setParsedCsvData([]);
+      setCsvText('');
+      setImportSuccessMsg(null);
+    }, 1500);
   };
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Student Management</h1>
-        <p className="text-gray-600">Manage student information and records</p>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search students..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                />
-              </div>
-
-              <select value={filterClass} onChange={e => { setFilterClass(e.target.value); setFilterSection(''); }} className="px-3 py-2 border rounded">
-                <option value="">All Classes</option>
-                {dbClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
-
-              <select value={filterSection} onChange={e => setFilterSection(e.target.value)} className="px-3 py-2 border rounded">
-                <option value="">All Sections</option>
-                {dbSections
-                  .filter(s => {
-                    const selectedCls = dbClasses.find(c => c.name === filterClass);
-                    return selectedCls ? s.class_id === selectedCls.id : true;
-                  })
-                  .map(s => <option key={s.id} value={s.name}>{s.name}</option>)
-                }
-              </select>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
-                <span className="px-3 py-2 border rounded cursor-pointer">Import Excel</span>
-              </label>
-
-              <button
-                onClick={handleAdd}
-                className="flex items-center space-x-2 bg-[#4e74f9] text-white px-4 py-2 rounded-lg hover:bg-[#3d5fd8] transition"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add Student</span>
-              </button>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Student Management</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
+            Manage student enrollments, detailed parent profiles, reservation status, transport routes, and CSV bulk import
+          </p>
         </div>
 
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setCsvText('');
+              setParsedCsvData([]);
+              setImportErrors([]);
+              setImportSuccessMsg(null);
+              setShowImportModal(true);
+            }}
+            className="px-4 py-2.5 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-sm"
+          >
+            <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Import CSV (Bulk)
+          </button>
+
+          <button
+            onClick={handleAdd}
+            className="px-4 py-2.5 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-md shadow-blue-500/20"
+          >
+            <Plus className="w-4 h-4" />
+            Add New Student
+          </button>
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div>
+            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
+              Search
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search by name, ID, parent, roll..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
+              Filter by Class
+            </label>
+            <select
+              value={filterClass}
+              onChange={(e) => setFilterClass(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none text-sm"
+            >
+              <option value="">All Classes (Pre-Primary & 1-12)</option>
+              <optgroup label="Pre-Primary">
+                {prePrimaryClasses.map(cls => <option key={cls} value={cls}>{cls}</option>)}
+              </optgroup>
+              <optgroup label="Classes 1 to 12">
+                {primaryAndSecClasses.map(cls => <option key={cls} value={cls}>Class {cls}</option>)}
+              </optgroup>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
+              Student Category
+            </label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none text-sm"
+            >
+              <option value="">All Categories</option>
+              <option value="normal">Normal Student</option>
+              <option value="reservation">Reservation / Concession</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilterClass('');
+                setFilterCategory('');
+              }}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium transition"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Student List Table */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Parent Contact</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Emergency Contact</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Blood Group</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Student ID</th>
+                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Name</th>
+                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Class & Sec</th>
+                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Category</th>
+                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Roll No</th>
+                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Parents</th>
+                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Transport</th>
+                <th className="px-5 py-3.5 text-center font-semibold text-gray-600 dark:text-slate-300">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {filteredStudents.map((student) => (
-                <tr key={student.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-800 font-medium">{student.studentId}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{`${student.firstName} ${student.lastName}`}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{`${student.class}-${student.section}`}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{student.rollNumber}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{student.parentPhone}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{student.emergencyContact || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{student.bloodGroup || '-'}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
+                <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                  <td className="px-5 py-4 font-mono font-medium text-xs text-blue-600 dark:text-blue-400">
+                    {student.studentId}
+                  </td>
+                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-white">
+                    {student.firstName} {student.lastName}
+                  </td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-300 font-medium">
+                    {student.class} - {student.section}
+                  </td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                        student.category === 'reservation'
+                          ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                          : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+                      }`}
+                    >
+                      {student.category === 'reservation' ? 'Reservation' : 'Normal'}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-300 font-mono">{student.rollNumber}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-300">
+                    <div className="text-xs">
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {student.fatherName || student.parentName}
+                      </span>
+                      {student.motherName && (
+                        <span className="text-gray-500 dark:text-slate-400 block">
+                          Mother: {student.motherName}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                        student.isAvailingTransport
+                          ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                          : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <Bus className="w-3 h-3" />
+                      {student.isAvailingTransport ? 'Bus Service' : 'No'}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
                       <button
                         onClick={() => handleView(student)}
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-lg transition"
+                        title="View Details"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(student)}
-                        className="p-1 text-[#4e74f9] hover:bg-blue-50 rounded"
+                        className="p-1.5 text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-lg transition"
+                        title="Edit Student"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => confirmDelete(student.id)}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/60 rounded-lg transition"
+                        title="Delete Student"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -435,209 +550,587 @@ const StudentManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Add / Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">
-                {isEditing ? 'Edit Student' : 'Add New Student'}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
+      {/* CSV Bulk Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Import Students (CSV Bulk)</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Upload or paste CSV with student personal, parent, category and transport details
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  />
+            <div className="p-6 space-y-5">
+              {importSuccessMsg && (
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl flex items-center gap-3 text-sm font-medium">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>{importSuccessMsg}</span>
                 </div>
+              )}
 
+              {/* Sample Template & Upload Row */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  />
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">Need a sample file?</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Download the pre-formatted CSV template with all parent, address, and transport headers.
+                  </p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
-                  <input
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Class *</label>
-                  <select
-                    value={formData.class}
-                    onChange={(e) => setFormData({ ...formData, class: e.target.value, section: '' })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  >
-                    <option value="">Select Class</option>
-                    {dbClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Section *</label>
-                  <select
-                    value={formData.section}
-                    onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  >
-                    <option value="">Select Section</option>
-                    {dbSections
-                      .filter(s => {
-                        const selectedCls = dbClasses.find(c => c.name === formData.class);
-                        return selectedCls ? s.class_id === selectedCls.id : true;
-                      })
-                      .map(s => <option key={s.id} value={s.name}>{s.name}</option>)
-                    }
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number *</label>
-                  <input
-                    type="text"
-                    value={formData.rollNumber}
-                    onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Admission Date *</label>
-                  <input
-                    type="date"
-                    value={formData.admissionDate}
-                    onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent Name *</label>
-                  <input
-                    type="text"
-                    value={formData.parentName}
-                    onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone *</label>
-                  <input
-                    type="tel"
-                    value={formData.parentPhone}
-                    onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent Email</label>
-                  <input
-                    type="email"
-                    value={formData.parentEmail}
-                    onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Address broken into parts */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">House Address</label>
-                  <input type="text" value={formData.houseAddress} onChange={e => setFormData({...formData, houseAddress: e.target.value})} className="w-full px-3 py-2 border rounded" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                  <input type="text" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full px-3 py-2 border rounded" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                  <input type="text" value={formData.state} onChange={e => setFormData({...formData, state: e.target.value})} className="w-full px-3 py-2 border rounded" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">PIN Code</label>
-                  <input type="text" value={formData.pinCode} onChange={e => setFormData({...formData, pinCode: e.target.value})} className="w-full px-3 py-2 border rounded" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
-                  <input type="tel" value={formData.emergencyContact} onChange={e => setFormData({...formData, emergencyContact: e.target.value})} className="w-full px-3 py-2 border rounded" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
-                  <select value={formData.bloodGroup} onChange={e => setFormData({...formData, bloodGroup: e.target.value})} className="w-full px-3 py-2 border rounded">
-                    <option value="">Select</option>
-                    {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Class Teacher</label>
-                  <input type="text" value={formData.classTeacher} onChange={e => setFormData({...formData, classTeacher: e.target.value})} className="w-full px-3 py-2 border rounded" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Associate Teacher</label>
-                  <input type="text" value={formData.associateTeacher} onChange={e => setFormData({...formData, associateTeacher: e.target.value})} className="w-full px-3 py-2 border rounded" />
-                </div>
-
+                <button
+                  onClick={handleDownloadSampleCsv}
+                  className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-800 dark:text-white rounded-xl text-xs font-semibold hover:bg-gray-100 dark:hover:bg-slate-600 transition flex items-center gap-2 shrink-0"
+                >
+                  <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  Download Sample CSV
+                </button>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              {/* File Upload / Paste Box */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 dark:text-slate-300 mb-2">
+                  Upload .CSV File or Paste Content
+                </label>
+                <div className="flex gap-3 mb-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2.5 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-semibold transition flex items-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Choose .CSV File
+                  </button>
+                  <span className="text-xs text-gray-400 self-center">or paste raw CSV text below:</span>
+                </div>
+
+                <textarea
+                  rows={5}
+                  value={csvText}
+                  onChange={(e) => {
+                    setCsvText(e.target.value);
+                    parseCsvText(e.target.value);
+                  }}
+                  placeholder="Paste comma-separated student records here..."
+                  className="w-full font-mono text-xs p-3.5 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                />
+              </div>
+
+              {/* Error messages */}
+              {importErrors.length > 0 && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 rounded-xl text-xs text-rose-700 dark:text-rose-300 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>CSV Validation Warnings:</span>
+                  </div>
+                  {importErrors.map((err, idx) => (
+                    <p key={idx}>• {err}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Data Preview Table */}
+              {parsedCsvData.length > 0 && (
+                <div className="border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 dark:bg-slate-800/80 px-4 py-2.5 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-700 dark:text-slate-300">
+                      Parsed Preview: {parsedCsvData.length} valid record(s) ready to import
+                    </span>
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                      ✓ Valid format
+                    </span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-100/50 dark:bg-slate-800/40 border-b border-gray-200 dark:border-slate-700">
+                        <tr>
+                          <th className="p-2 text-left">ID</th>
+                          <th className="p-2 text-left">Name</th>
+                          <th className="p-2 text-left">Class-Sec</th>
+                          <th className="p-2 text-left">Category</th>
+                          <th className="p-2 text-left">Father</th>
+                          <th className="p-2 text-left">Mother</th>
+                          <th className="p-2 text-left">Phone</th>
+                          <th className="p-2 text-left">Transport</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                        {parsedCsvData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                            <td className="p-2 font-mono text-blue-600">{row.studentId}</td>
+                            <td className="p-2 font-semibold">{row.firstName} {row.lastName}</td>
+                            <td className="p-2">{row.class} - {row.section}</td>
+                            <td className="p-2 capitalize">{row.category}</td>
+                            <td className="p-2">{row.fatherName || '-'}</td>
+                            <td className="p-2">{row.motherName || '-'}</td>
+                            <td className="p-2">{row.fatherPhone || row.parentPhone}</td>
+                            <td className="p-2">{row.isAvailingTransport ? 'Yes' : 'No'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowImportModal(false)}
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmImport}
+                  disabled={parsedCsvData.length === 0}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition shadow-sm flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Import {parsedCsvData.length > 0 ? `${parsedCsvData.length} Students` : ''}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Student Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {isEditing ? 'Edit Student Profile' : 'Enroll New Student'}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Complete personal, academic, parental, and transport profile
+                </p>
+              </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Category / Reservation Section */}
+              <div className="p-4 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <div>
+                    <span className="font-bold text-sm text-purple-900 dark:text-purple-200">
+                      Admission Category / Reservation Quota
+                    </span>
+                    <p className="text-xs text-purple-700 dark:text-purple-300">
+                      Select if this student qualifies for RTE / government quota / concession fee structure.
+                    </p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-800 px-3.5 py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 text-xs font-semibold text-purple-900 dark:text-purple-200">
+                  <input
+                    type="checkbox"
+                    checked={formData.category === 'reservation'}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        category: e.target.checked ? 'reservation' : 'normal'
+                      })
+                    }
+                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                  <span>Reservation Student</span>
+                </label>
+              </div>
+
+              {/* Student Basic Details */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3">
+                  Academic & Personal Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Date of Birth *
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Gender
+                    </label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Class *
+                    </label>
+                    <select
+                      value={formData.class}
+                      onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      required
+                    >
+                      <optgroup label="Pre-Primary">
+                        {prePrimaryClasses.map(cls => <option key={cls} value={cls}>{cls}</option>)}
+                      </optgroup>
+                      <optgroup label="Classes 1 to 12">
+                        {primaryAndSecClasses.map(cls => <option key={cls} value={cls}>Class {cls}</option>)}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Section *
+                    </label>
+                    <select
+                      value={formData.section}
+                      onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      required
+                    >
+                      {sectionOptions.map(sec => <option key={sec} value={sec}>Section {sec}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Roll Number *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.rollNumber}
+                      onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Blood Group
+                    </label>
+                    <select
+                      value={formData.bloodGroup}
+                      onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    >
+                      {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Admission Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.admissionDate}
+                      onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Transportation Options */}
+              <div className="p-4 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <Bus className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <div>
+                      <span className="font-bold text-sm text-amber-900 dark:text-amber-200">
+                        School Transportation Facility
+                      </span>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Enable if student avails school bus service; automatically updates transport fee ledger.
+                      </p>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-800 px-3.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-xs font-semibold text-amber-900 dark:text-amber-200 shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={formData.isAvailingTransport || false}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          isAvailingTransport: e.target.checked
+                        })
+                      }
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    <span>Avail Transport</span>
+                  </label>
+                </div>
+
+                {formData.isAvailingTransport && (
+                  <div className="pt-3 border-t border-amber-200/60 dark:border-amber-800/40 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase text-amber-900 dark:text-amber-200 mb-1">
+                        Select Bus Route
+                      </label>
+                      <select
+                        value={formData.busRouteId || ''}
+                        onChange={(e) => setFormData({ ...formData, busRouteId: e.target.value })}
+                        className="w-full px-3.5 py-2 border border-amber-300 dark:border-amber-700 rounded-xl bg-white dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      >
+                        <option value="">-- Choose Assigned Route --</option>
+                        {transportRoutes.map(tr => (
+                          <option key={tr.id} value={tr.id}>
+                            {tr.routeNumber} - {tr.routeTitle} ({tr.vehicleType})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase text-amber-900 dark:text-amber-200 mb-1">
+                        Pickup / Drop Notes
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Sector 14 main gate stop"
+                        className="w-full px-3.5 py-2 border border-amber-300 dark:border-amber-700 rounded-xl bg-white dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Parents & Guardians Detailed Information */}
+              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-500" />
+                  Parents / Guardian Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Father Details */}
+                  <div className="p-3.5 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700/60 space-y-3">
+                    <p className="text-xs font-bold text-gray-800 dark:text-slate-200">Father's Information</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">
+                        Father's Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.fatherName}
+                        onChange={(e) => setFormData({ ...formData, fatherName: e.target.value, parentName: e.target.value })}
+                        placeholder="e.g. Rajesh Sharma"
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">
+                        Father's Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.fatherPhone}
+                        onChange={(e) => setFormData({ ...formData, fatherPhone: e.target.value, parentPhone: e.target.value })}
+                        placeholder="+91 9876543210"
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mother Details */}
+                  <div className="p-3.5 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700/60 space-y-3">
+                    <p className="text-xs font-bold text-gray-800 dark:text-slate-200">Mother's Information</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">
+                        Mother's Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.motherName}
+                        onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                        placeholder="e.g. Sunita Sharma"
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-slate-300 mb-1">
+                        Mother's Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.motherPhone}
+                        onChange={(e) => setFormData({ ...formData, motherPhone: e.target.value })}
+                        placeholder="+91 9876543211"
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email & Emergency */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Parent Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.parentEmail}
+                      onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                      placeholder="parent@example.com"
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      Emergency Contact Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.emergencyContact}
+                      onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                      placeholder="+91 9876500000"
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Residential Address Details */}
+              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-rose-500" />
+                  Residential Address
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-3">
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      House / Flat / Street Address
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Flat 402, Block B, Green Valley Apartments"
+                      value={formData.houseAddress}
+                      onChange={(e) => setFormData({ ...formData, houseAddress: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      City / District
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      State / UT (Dropdown)
+                    </label>
+                    <select
+                      value={formData.state || 'Delhi'}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    >
+                      {indianStates.map(st => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                      PIN Code
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pinCode}
+                      onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
+                      placeholder="110001"
+                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#4e74f9] text-white rounded-lg hover:bg-[#3d5fd8] transition"
+                  className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-sm"
                 >
-                  {isEditing ? 'Update' : 'Add'} Student
+                  {isEditing ? 'Save Changes' : 'Enroll Student'}
                 </button>
               </div>
             </form>
@@ -645,106 +1138,138 @@ const StudentManagement: React.FC = () => {
         </div>
       )}
 
-      {/* View Modal */}
+      {/* View Details Modal */}
       {showViewModal && currentStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">Student Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {currentStudent.firstName} {currentStudent.lastName}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Student ID: {currentStudent.studentId}</p>
+              </div>
+              <span
+                className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                  currentStudent.category === 'reservation'
+                    ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                    : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                }`}
+              >
+                {currentStudent.category === 'reservation' ? 'Reservation / Concession' : 'Normal Student'}
+              </span>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              {/* Academic & Bio Grid */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Class & Sec</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Class {currentStudent.class} ({currentStudent.section})</span>
+                </div>
+                <div>
+                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Roll Number</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{currentStudent.rollNumber}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Date of Birth</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">{currentStudent.dateOfBirth}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Blood Group</span>
+                  <span className="font-bold text-rose-600 dark:text-rose-400">{currentStudent.bloodGroup}</span>
+                </div>
+              </div>
+
+              {/* Parents Section */}
+              <div className="p-4 border border-gray-200 dark:border-slate-800 rounded-xl space-y-2">
+                <p className="text-xs font-bold uppercase text-gray-500 dark:text-slate-400">Parent & Guardian Contacts</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-2.5 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                    <span className="text-gray-500 dark:text-slate-400 block">Father:</span>
+                    <span className="font-bold text-gray-900 dark:text-white block text-sm">
+                      {currentStudent.fatherName || currentStudent.parentName}
+                    </span>
+                    <span className="text-gray-600 dark:text-slate-300">
+                      Phone: {currentStudent.fatherPhone || currentStudent.parentPhone}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                    <span className="text-gray-500 dark:text-slate-400 block">Mother:</span>
+                    <span className="font-bold text-gray-900 dark:text-white block text-sm">
+                      {currentStudent.motherName || 'N/A'}
+                    </span>
+                    <span className="text-gray-600 dark:text-slate-300">
+                      Phone: {currentStudent.motherPhone || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-600 dark:text-slate-300 flex flex-wrap gap-4 pt-1">
+                  <span><strong>Email:</strong> {currentStudent.parentEmail}</span>
+                  <span><strong>Emergency Phone:</strong> {currentStudent.emergencyContact}</span>
+                </div>
+              </div>
+
+              {/* Transport & Address */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-4 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl">
+                  <p className="text-xs font-bold uppercase text-amber-900 dark:text-amber-200 mb-1">Transport Status</p>
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    {currentStudent.isAvailingTransport ? 'Availing School Transport' : 'Self Commute / Private Transport'}
+                  </p>
+                  {currentStudent.busRouteId && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                      Assigned Route ID: {currentStudent.busRouteId}
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-4 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-xl">
+                  <p className="text-xs font-bold uppercase text-gray-500 dark:text-slate-400 mb-1">Residential Address</p>
+                  <p className="text-xs text-gray-800 dark:text-slate-200">
+                    {currentStudent.houseAddress || 'N/A'}, {currentStudent.city || ''}, {currentStudent.state || ''} - {currentStudent.pinCode || ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-5">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700"
+              >
+                Close
               </button>
             </div>
-
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Student ID</p>
-                  <p className="font-medium text-gray-800">{currentStudent.studentId}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Name</p>
-                  <p className="font-medium text-gray-800">{`${currentStudent.firstName} ${currentStudent.lastName}`}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Date of Birth</p>
-                  <p className="font-medium text-gray-800">{currentStudent.dateOfBirth}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Gender</p>
-                  <p className="font-medium text-gray-800">{currentStudent.gender}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Class</p>
-                  <p className="font-medium text-gray-800">{`${currentStudent.class}-${currentStudent.section}`}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Roll Number</p>
-                  <p className="font-medium text-gray-800">{currentStudent.rollNumber}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Admission Date</p>
-                  <p className="font-medium text-gray-800">{currentStudent.admissionDate}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Parent Name</p>
-                  <p className="font-medium text-gray-800">{currentStudent.parentName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Parent Phone</p>
-                  <p className="font-medium text-gray-800">{currentStudent.parentPhone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Parent Email</p>
-                  <p className="font-medium text-gray-800">{currentStudent.parentEmail}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-600">Emergency Contact</p>
-                  <p className="font-medium text-gray-800">{currentStudent.emergencyContact || '-'}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-600">Blood Group</p>
-                  <p className="font-medium text-gray-800">{currentStudent.bloodGroup || '-'}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-600">Class Teacher</p>
-                  <p className="font-medium text-gray-800">{currentStudent.classTeacher || '-'}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-600">Associate Teacher</p>
-                  <p className="font-medium text-gray-800">{currentStudent.associateTeacher || '-'}</p>
-                </div>
-
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-600">Address</p>
-                  <p className="font-medium text-gray-800">{`${currentStudent.houseAddress || ''} ${currentStudent.city ? ', ' + currentStudent.city : ''} ${currentStudent.state ? ', ' + currentStudent.state : ''} ${currentStudent.pinCode ? ', ' + currentStudent.pinCode : ''}`}</p>
-                </div>
-
-              </div>
-            </div>
           </div>
         </div>
       )}
 
-      {/* Confirm modal (center-aligned text + buttons) */}
+      {/* Delete Confirmation Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-60">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="text-center">
-              <p className="mb-4 text-gray-800">Are you sure you want to delete this student?</p>
-              <div className="flex justify-center gap-3">
-                <button onClick={() => setShowConfirm(false)} className="px-4 py-2 border rounded">Cancel</button>
-                <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded">Delete</button>
-              </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 text-center">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Student?</h3>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">
+              This action will delete the student and their associated fee ledger record.
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition"
+              >
+                Confirm Delete
+              </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

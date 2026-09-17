@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, X, UserCog, Layers, Award } from 'lucide-react';
-import { designationApi, departmentApi } from '../services/api';
+import { useData } from '../contexts/DataContext';
 
 interface Staff {
   id: string;
@@ -21,21 +21,23 @@ interface Staff {
   bloodGroup: string;
 }
 
-interface Designation {
-  id: number;
-  name: string;
-  description: string;
-}
-
-interface Department {
-  id: number;
-  name: string;
-  description: string;
-}
-
 const StaffManagement: React.FC = () => {
+  const {
+    staff: rawStaff,
+    departments,
+    designations,
+    addEmployee,
+    updateEmployee,
+    deleteEmployee,
+    addDepartment,
+    updateDepartment,
+    deleteDepartment,
+    addDesignation,
+    updateDesignation,
+    deleteDesignation
+  } = useData();
+
   const [activeTab, setActiveTab] = useState<'staff' | 'departments' | 'designations'>('staff');
-  const [staff, setStaff] = useState<Staff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [designationFilter, setDesignationFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
@@ -44,16 +46,11 @@ const StaffManagement: React.FC = () => {
   const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Designation & Department States
-  const [designations, setDesignations] = useState<Designation[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [_isLoading, setIsLoading] = useState(false);
-
   // Department & Designation Modals/Forms
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [showDesigModal, setShowDesigModal] = useState(false);
-  const [currentDept, setCurrentDept] = useState<Department | null>(null);
-  const [currentDesig, setCurrentDesig] = useState<Designation | null>(null);
+  const [currentDeptId, setCurrentDeptId] = useState<string | null>(null);
+  const [currentDesigId, setCurrentDesigId] = useState<string | null>(null);
   const [deptForm, setDeptForm] = useState({ name: '', description: '' });
   const [desigForm, setDesigForm] = useState({ name: '', description: '' });
 
@@ -74,25 +71,29 @@ const StaffManagement: React.FC = () => {
     bloodGroup: '',
   });
 
-  useEffect(() => {
-    fetchMeta();
-  }, []);
-
-  const fetchMeta = async () => {
-    try {
-      setIsLoading(true);
-      const [desigsData, deptsData] = await Promise.all([
-        designationApi.getDesignations(),
-        departmentApi.getDepartments()
-      ]);
-      setDesignations(desigsData);
-      setDepartments(deptsData);
-    } catch (err) {
-      console.error('Failed to load designations/departments', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const staff: Staff[] = rawStaff.map(s => {
+    const parts = (s.name || '').split(' ');
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
+    return {
+      id: s.id,
+      staffId: s.code || s.id,
+      firstName,
+      lastName,
+      email: s.email,
+      phone: s.phone,
+      designation: s.designation,
+      department: s.department,
+      joiningDate: s.joiningDate,
+      dob: '1985-05-20',
+      houseAddress: s.address?.street || '45 Civic Center',
+      city: s.address?.city || 'New Delhi',
+      state: s.address?.state || 'Delhi',
+      pinCode: s.address?.zip || '110001',
+      emergencyContact: s.emergencyContact || '+91 98765 00000',
+      bloodGroup: s.bloodGroup || 'B+'
+    };
+  });
 
   const filteredStaff = staff.filter((s) => {
     const searchMatch =
@@ -110,16 +111,16 @@ const StaffManagement: React.FC = () => {
       lastName: '',
       email: '',
       phone: '',
-      designation: '',
-      department: '',
-      joiningDate: '',
-      dob: '',
+      designation: designations[0]?.name || '',
+      department: departments[0]?.name || '',
+      joiningDate: new Date().toISOString().split('T')[0],
+      dob: '1988-01-01',
       houseAddress: '',
-      city: '',
-      state: '',
-      pinCode: '',
+      city: 'New Delhi',
+      state: 'Delhi',
+      pinCode: '110001',
       emergencyContact: '',
-      bloodGroup: '',
+      bloodGroup: 'B+',
     });
     setShowModal(true);
   };
@@ -138,22 +139,56 @@ const StaffManagement: React.FC = () => {
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this staff member?')) {
-      setStaff(staff.filter((s) => s.id !== id));
+      deleteEmployee(id);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const fullName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
 
     if (isEditing && currentStaff) {
-      setStaff(staff.map((s) => (s.id === currentStaff.id ? { ...currentStaff, ...formData } : s)));
+      updateEmployee(currentStaff.id, {
+        name: fullName,
+        email: formData.email,
+        phone: formData.phone,
+        designation: formData.designation,
+        department: formData.department,
+        bloodGroup: formData.bloodGroup,
+        emergencyContact: formData.emergencyContact,
+        address: {
+          street: formData.houseAddress || '',
+          city: formData.city || 'New Delhi',
+          state: formData.state || 'Delhi',
+          zip: formData.pinCode || '110001'
+        }
+      });
     } else {
-      const newStaff: Staff = {
-        ...(formData as Staff),
-        id: Date.now().toString(),
-        staffId: `STF${String(staff.length + 1).padStart(3, '0')}`,
-      };
-      setStaff([...staff, newStaff]);
+      addEmployee({
+        code: `ADM-${String(Math.floor(100 + Math.random() * 900))}`,
+        name: fullName,
+        role: (formData.department === 'Transport' || formData.department === 'Library') ? 'support' : 'admin',
+        designation: formData.designation || 'Staff Officer',
+        department: formData.department || 'Administration',
+        phone: formData.phone || '+91 98765 43210',
+        email: formData.email || `${formData.firstName?.toLowerCase()}@school.com`,
+        joiningDate: formData.joiningDate || new Date().toISOString().split('T')[0],
+        qualification: 'Graduate',
+        gender: 'Male',
+        bloodGroup: formData.bloodGroup || 'B+',
+        emergencyContact: formData.emergencyContact,
+        address: {
+          street: formData.houseAddress || '',
+          city: formData.city || 'New Delhi',
+          state: formData.state || 'Delhi',
+          zip: formData.pinCode || '110001'
+        },
+        leaveBalance: {
+          casual: { total: 15, taken: 0 },
+          sick: { total: 12, taken: 0 },
+          earned: { total: 20, taken: 0 }
+        }
+      });
     }
 
     setShowModal(false);
@@ -163,95 +198,75 @@ const StaffManagement: React.FC = () => {
   // Department CRUD operations
   const handleAddDept = () => {
     setDeptForm({ name: '', description: '' });
-    setCurrentDept(null);
+    setCurrentDeptId(null);
     setShowDeptModal(true);
   };
 
-  const handleEditDept = (dept: Department) => {
-    setCurrentDept(dept);
+  const handleEditDept = (dept: any) => {
+    setCurrentDeptId(dept.id);
     setDeptForm({ name: dept.name, description: dept.description || '' });
     setShowDeptModal(true);
   };
 
-  const handleDeleteDept = async (id: number) => {
+  const handleDeleteDept = (id: string) => {
     if (window.confirm('Are you sure you want to delete this department?')) {
-      try {
-        await departmentApi.deleteDepartment(id);
-        fetchMeta();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to delete department');
-      }
+      deleteDepartment(id);
     }
   };
 
-  const handleDeptSubmit = async (e: React.FormEvent) => {
+  const handleDeptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (currentDept) {
-        await departmentApi.updateDepartment(currentDept.id, deptForm.name, deptForm.description);
-      } else {
-        await departmentApi.createDepartment(deptForm.name, deptForm.description);
-      }
-      setShowDeptModal(false);
-      fetchMeta();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save department');
+    if (currentDeptId) {
+      updateDepartment(currentDeptId, deptForm);
+    } else {
+      addDepartment({ ...deptForm, staffCount: 0 });
     }
+    setShowDeptModal(false);
   };
 
   // Designation CRUD operations
   const handleAddDesig = () => {
     setDesigForm({ name: '', description: '' });
-    setCurrentDesig(null);
+    setCurrentDesigId(null);
     setShowDesigModal(true);
   };
 
-  const handleEditDesig = (desig: Designation) => {
-    setCurrentDesig(desig);
+  const handleEditDesig = (desig: any) => {
+    setCurrentDesigId(desig.id);
     setDesigForm({ name: desig.name, description: desig.description || '' });
     setShowDesigModal(true);
   };
 
-  const handleDeleteDesig = async (id: number) => {
+  const handleDeleteDesig = (id: string) => {
     if (window.confirm('Are you sure you want to delete this designation?')) {
-      try {
-        await designationApi.deleteDesignation(id);
-        fetchMeta();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to delete designation');
-      }
+      deleteDesignation(id);
     }
   };
 
-  const handleDesigSubmit = async (e: React.FormEvent) => {
+  const handleDesigSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (currentDesig) {
-        await designationApi.updateDesignation(currentDesig.id, desigForm.name, desigForm.description);
-      } else {
-        await designationApi.createDesignation(desigForm.name, desigForm.description);
-      }
-      setShowDesigModal(false);
-      fetchMeta();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save designation');
+    if (currentDesigId) {
+      updateDesignation(currentDesigId, desigForm);
+    } else {
+      addDesignation(desigForm);
     }
+    setShowDesigModal(false);
   };
 
   return (
     <div>
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Staff & HR Management</h1>
-          <p className="text-gray-600">Manage non-teaching staff, departments, and designations</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Staff & HR Management</h1>
+          <p className="text-gray-600 dark:text-slate-400">Manage non-teaching staff, departments, and designations</p>
         </div>
-        <div className="flex space-x-1 mt-4 md:mt-0 bg-gray-100 p-1 rounded-lg">
+        <div className="flex space-x-1 mt-4 md:mt-0 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
           <button
             onClick={() => setActiveTab('staff')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
               activeTab === 'staff'
-                ? 'bg-white text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
             }`}
           >
             <UserCog className="w-4 h-4" />
@@ -261,8 +276,8 @@ const StaffManagement: React.FC = () => {
             onClick={() => setActiveTab('departments')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
               activeTab === 'departments'
-                ? 'bg-white text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -272,8 +287,8 @@ const StaffManagement: React.FC = () => {
             onClick={() => setActiveTab('designations')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
               activeTab === 'designations'
-                ? 'bg-white text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
             }`}
           >
             <Award className="w-4 h-4" />
@@ -283,8 +298,8 @@ const StaffManagement: React.FC = () => {
       </div>
 
       {activeTab === 'staff' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="p-6 border-b border-gray-200 space-y-4">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
+          <div className="p-6 border-b border-gray-200 dark:border-slate-800 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -293,7 +308,7 @@ const StaffManagement: React.FC = () => {
                   placeholder="Search by ID or Name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none"
                 />
               </div>
               <button
@@ -309,7 +324,7 @@ const StaffManagement: React.FC = () => {
               <select
                 value={designationFilter}
                 onChange={(e) => setDesignationFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                className="px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white"
               >
                 <option value="">All Designations</option>
                 {designations.map((d) => (
@@ -322,7 +337,7 @@ const StaffManagement: React.FC = () => {
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                className="px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white"
               >
                 <option value="">All Departments</option>
                 {departments.map((d) => (
@@ -336,18 +351,18 @@ const StaffManagement: React.FC = () => {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800/60">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Designation</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">DOB</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Staff ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Designation</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Department</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Phone</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">DOB</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
                 {filteredStaff.map((staffMember) => (
                   <tr key={staffMember.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-800 font-medium">{staffMember.staffId}</td>

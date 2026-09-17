@@ -19,8 +19,8 @@ const Login: React.FC = () => {
 
     try {
       await login(email, password);
-    } catch (err) {
-      setError('Invalid email or password');
+    } catch (err: any) {
+      setError(err?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -34,8 +34,8 @@ const Login: React.FC = () => {
     try {
       await forgotPassword(forgotEmail);
       setForgotSuccess(true);
-    } catch (err) {
-      setError('Failed to send reset email');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to send reset email');
     } finally {
       setIsLoading(false);
     }

@@ -1,48 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X, Eye, FileText, Award } from 'lucide-react';
-import { examApi, classApi, subjectApi, studentApi } from '../services/api';
-
-interface ExamItem {
-  id: string;
-  name: string;
-  classId: string;
-  className: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-}
-
-interface ResultItem {
-  id: string;
-  examId: string;
-  examName: string;
-  studentId: string;
-  studentName: string;
-  subjectId: string;
-  subjectName: string;
-  marksObtained: number;
-  maxMarks: number;
-  percentage: number;
-  grade: string;
-}
+import { useData } from '../contexts/DataContext';
+import { ExamSchedule, ExamResultRecord } from '../services/centralData';
 
 const ExaminationManagement: React.FC = () => {
+  const {
+    exams,
+    addExam,
+    updateExam,
+    deleteExam,
+    examResults,
+    addExamResult,
+    updateExamResult,
+    classes,
+    subjects,
+    students
+  } = useData();
+
   const [activeTab, setActiveTab] = useState<'exams' | 'results'>('exams');
   const [searchTerm, setSearchTerm] = useState('');
-  const [_loading, setLoading] = useState(false);
-
-  const [exams, setExams] = useState<ExamItem[]>([]);
-  const [results, setResults] = useState<ResultItem[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
+  const [selectedExamFilterId, setSelectedExamFilterId] = useState<string>(exams[0]?.id || '');
 
   // Exam Form Modal State
   const [showExamModal, setShowExamModal] = useState(false);
-  const [editingExam, setEditingExam] = useState<ExamItem | null>(null);
+  const [editingExam, setEditingExam] = useState<ExamSchedule | null>(null);
   const [examForm, setExamForm] = useState({
     name: '',
-    class_id: '',
+    class_id: classes[0]?.id || '',
     start_date: '',
     end_date: ''
   });
@@ -58,117 +42,20 @@ const ExaminationManagement: React.FC = () => {
   const [showReportCardModal, setShowReportCardModal] = useState(false);
   const [reportCardData, setReportCardData] = useState<any | null>(null);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      // Load classes, subjects, students
-      const [clsData, subData, stuData] = await Promise.all([
-        classApi.getClasses().catch(() => []),
-        subjectApi.getSubjects().catch(() => []),
-        studentApi.getStudents().catch(() => [])
-      ]);
-
-      setClasses(clsData || []);
-      setSubjects(subData || []);
-      setStudents(stuData || []);
-
-      // Load exams
-      const dbExams = await examApi.getExams();
-      const mappedExams: ExamItem[] = (dbExams || []).map((e: any) => {
-        const clsName = e.class?.name || (clsData || []).find((c: any) => String(c.id) === String(e.class_id))?.name || 'All Classes';
-
-        let status = 'scheduled';
-        if (e.start_date && e.end_date) {
-          const now = new Date();
-          const start = new Date(e.start_date);
-          const end = new Date(e.end_date);
-          if (now > end) status = 'completed';
-          else if (now >= start && now <= end) status = 'ongoing';
-        }
-
-        return {
-          id: String(e.id),
-          name: e.name,
-          classId: String(e.class_id || ''),
-          className: clsName,
-          startDate: e.start_date || '',
-          endDate: e.end_date || '',
-          status
-        };
-      });
-      setExams(mappedExams);
-
-      // Load marks for the first available exam if any
-      if (mappedExams.length > 0) {
-        await fetchResultsForExam(mappedExams[0].id, subData, stuData, mappedExams);
-      } else {
-        setResults([]);
-      }
-    } catch (err) {
-      console.error('Error fetching examination data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchResultsForExam = async (examId: string, subList = subjects, stuList = students, examList = exams) => {
-    try {
-      const marksData = await examApi.getMarks(examId);
-      const targetExam = examList.find(e => String(e.id) === String(examId));
-
-      const mappedResults: ResultItem[] = (marksData || []).map((m: any) => {
-        const obtained = Number(m.marks_obtained || 0);
-        const max = Number(m.max_marks || 100);
-        const pct = max > 0 ? (obtained / max) * 100 : 0;
-
-        let grade = 'F';
-        if (pct >= 85) grade = 'A';
-        else if (pct >= 70) grade = 'B';
-        else if (pct >= 50) grade = 'C';
-        else if (pct >= 35) grade = 'D';
-
-        const studentName = m.student?.user?.name || stuList.find(s => String(s.id) === String(m.student_id))?.user?.name || `Student #${m.student_id}`;
-        const subjectName = m.subject?.name || subList.find(s => String(s.id) === String(m.subject_id))?.name || `Subject #${m.subject_id}`;
-
-        return {
-          id: String(m.id),
-          examId: String(m.exam_id),
-          examName: targetExam ? targetExam.name : `Exam #${m.exam_id}`,
-          studentId: String(m.student_id),
-          studentName,
-          subjectId: String(m.subject_id),
-          subjectName,
-          marksObtained: obtained,
-          maxMarks: max,
-          percentage: Number(pct.toFixed(2)),
-          grade
-        };
-      });
-
-      setResults(mappedResults);
-    } catch (err) {
-      console.error(`Error fetching marks for exam ${examId}:`, err);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   // Open modal for Creating Exam
   const handleOpenCreateExamModal = () => {
     setEditingExam(null);
     setExamForm({
       name: '',
-      class_id: classes.length > 0 ? String(classes[0].id) : '',
-      start_date: '',
-      end_date: ''
+      class_id: classes.length > 0 ? classes[0].id : '',
+      start_date: new Date().toISOString().split('T')[0],
+      end_date: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0]
     });
     setShowExamModal(true);
   };
 
   // Open modal for Editing Exam
-  const handleOpenEditExamModal = (exam: ExamItem) => {
+  const handleOpenEditExamModal = (exam: ExamSchedule) => {
     setEditingExam(exam);
     setExamForm({
       name: exam.name,
@@ -180,47 +67,43 @@ const ExaminationManagement: React.FC = () => {
   };
 
   // Save Exam (Create / Update)
-  const handleSaveExam = async (e: React.FormEvent) => {
+  const handleSaveExam = (e: React.FormEvent) => {
     e.preventDefault();
     if (!examForm.name || !examForm.class_id) {
       alert('Please fill in exam name and select a class.');
       return;
     }
 
-    try {
-      const payload = {
+    const cls = classes.find(c => c.id === examForm.class_id);
+    const className = cls ? cls.name : '10';
+
+    if (editingExam) {
+      updateExam(editingExam.id, {
         name: examForm.name,
-        class_id: Number(examForm.class_id),
-        start_date: examForm.start_date || undefined,
-        end_date: examForm.end_date || undefined
-      };
-
-      if (editingExam) {
-        await examApi.updateExam(editingExam.id, payload);
-      } else {
-        await examApi.createExam(payload);
-      }
-
-      setShowExamModal(false);
-      fetchData();
-    } catch (err: any) {
-      console.error('Failed to save exam:', err);
-      alert(err.message || 'Error saving examination');
+        classId: examForm.class_id,
+        className,
+        startDate: examForm.start_date,
+        endDate: examForm.end_date
+      });
+    } else {
+      addExam({
+        name: examForm.name,
+        academicYear: '2026-2027',
+        classId: examForm.class_id,
+        className,
+        startDate: examForm.start_date,
+        endDate: examForm.end_date,
+        status: 'scheduled'
+      });
     }
+
+    setShowExamModal(false);
   };
 
   // Delete Exam
-  const handleDeleteExam = async (examId: string) => {
-    if (!window.confirm('Are you sure you want to delete this examination? All associated marks will also be deleted.')) {
-      return;
-    }
-
-    try {
-      await examApi.deleteExam(examId);
-      fetchData();
-    } catch (err: any) {
-      console.error('Failed to delete exam:', err);
-      alert(err.message || 'Error deleting examination');
+  const handleDeleteExam = (examId: string) => {
+    if (window.confirm('Are you sure you want to delete this examination? All associated marks will also be deleted.')) {
+      deleteExam(examId);
     }
   };
 
@@ -233,8 +116,8 @@ const ExaminationManagement: React.FC = () => {
 
     const defaultExam = exams[0];
     setSelectedExamId(defaultExam.id);
-    setSelectedClassId(defaultExam.classId || (classes[0] ? String(classes[0].id) : ''));
-    setSelectedSubjectId(subjects.length > 0 ? String(subjects[0].id) : '');
+    setSelectedClassId(defaultExam.classId || classes[0]?.id || '');
+    setSelectedSubjectId(subjects.length > 0 ? subjects[0].id : '');
 
     setShowMarksModal(true);
   };
@@ -243,64 +126,115 @@ const ExaminationManagement: React.FC = () => {
   useEffect(() => {
     if (!showMarksModal) return;
 
-    // Filter students belonging to selectedClassId (or all if not selected)
-    const filteredStudents = selectedClassId
-      ? students.filter(s => String(s.class_id) === String(selectedClassId))
+    const cls = classes.find(c => c.id === selectedClassId);
+    const clsName = cls ? cls.name : '';
+
+    const filteredStudents = clsName
+      ? students.filter(s => s.class === clsName)
       : students;
 
     const initialInputs: Record<string, { marks_obtained: string; max_marks: string }> = {};
     filteredStudents.forEach(s => {
-      initialInputs[String(s.id)] = {
-        marks_obtained: '0',
-        max_marks: '100'
+      const existing = examResults.find(r => r.examId === selectedExamId && r.studentId === s.id && r.subjectId === selectedSubjectId);
+      initialInputs[s.id] = {
+        marks_obtained: existing ? String(existing.marksObtained) : '85',
+        max_marks: existing ? String(existing.maxMarks) : '100'
       };
     });
     setMarksInputs(initialInputs);
-  }, [showMarksModal, selectedClassId, students]);
+  }, [showMarksModal, selectedClassId, selectedExamId, selectedSubjectId, students, classes, examResults]);
 
   // Save Recorded Marks
-  const handleSaveMarks = async (e: React.FormEvent) => {
+  const handleSaveMarks = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedExamId || !selectedSubjectId) {
       alert('Please select an Examination and a Subject.');
       return;
     }
 
-    const records = Object.entries(marksInputs).map(([student_id, val]) => ({
-      student_id: Number(student_id),
-      marks_obtained: Number(val.marks_obtained) || 0,
-      max_marks: Number(val.max_marks) || 100
-    }));
+    const targetExam = exams.find(ex => ex.id === selectedExamId);
+    const targetSubject = subjects.find(sub => sub.id === selectedSubjectId);
 
-    if (records.length === 0) {
-      alert('No student records found to submit.');
-      return;
-    }
+    Object.entries(marksInputs).forEach(([student_id, val]) => {
+      const stu = students.find(s => s.id === student_id);
+      const obtained = Number(val.marks_obtained) || 0;
+      const max = Number(val.max_marks) || 100;
+      const pct = max > 0 ? (obtained / max) * 100 : 0;
 
-    try {
-      await examApi.recordMarks(selectedExamId, {
-        subject_id: Number(selectedSubjectId),
-        records
-      });
+      let grade = 'F';
+      if (pct >= 90) grade = 'A1';
+      else if (pct >= 80) grade = 'A2';
+      else if (pct >= 70) grade = 'B1';
+      else if (pct >= 60) grade = 'B2';
+      else if (pct >= 50) grade = 'C';
+      else if (pct >= 35) grade = 'D';
 
-      setShowMarksModal(false);
-      fetchResultsForExam(selectedExamId);
-    } catch (err: any) {
-      console.error('Failed to record marks:', err);
-      alert(err.message || 'Error recording marks');
-    }
+      const existing = examResults.find(r => r.examId === selectedExamId && r.studentId === student_id && r.subjectId === selectedSubjectId);
+      if (existing) {
+        updateExamResult(existing.id, {
+          marksObtained: obtained,
+          maxMarks: max,
+          percentage: Number(pct.toFixed(1)),
+          grade
+        });
+      } else {
+        addExamResult({
+          examId: selectedExamId,
+          examName: targetExam?.name || 'Examination',
+          studentId: student_id,
+          studentName: stu ? `${stu.firstName} ${stu.lastName}` : 'Student',
+          class: stu?.class || '10',
+          section: stu?.section || 'A',
+          rollNumber: stu?.rollNumber || '01',
+          subjectId: selectedSubjectId,
+          subjectName: targetSubject?.name || 'Subject',
+          marksObtained: obtained,
+          maxMarks: max,
+          percentage: Number(pct.toFixed(1)),
+          grade
+        });
+      }
+    });
+
+    setShowMarksModal(false);
   };
 
   // View Student Report Card
-  const handleViewReportCard = async (examId: string, studentId: string) => {
-    try {
-      const card = await examApi.getReportCard(examId, studentId);
-      setReportCardData(card);
-      setShowReportCardModal(true);
-    } catch (err: any) {
-      console.error('Failed to load report card:', err);
-      alert(err.message || 'Unable to fetch report card');
-    }
+  const handleViewReportCard = (examId: string, studentId: string) => {
+    const stu = students.find(s => s.id === studentId);
+    const ex = exams.find(e => e.id === examId);
+    const marks = examResults.filter(r => r.examId === examId && r.studentId === studentId);
+
+    const totalObtained = marks.reduce((sum, m) => sum + m.marksObtained, 0);
+    const totalMax = marks.reduce((sum, m) => sum + m.maxMarks, 0);
+    const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
+
+    let overallGrade = 'F';
+    if (percentage >= 90) overallGrade = 'A1';
+    else if (percentage >= 80) overallGrade = 'A2';
+    else if (percentage >= 70) overallGrade = 'B1';
+    else if (percentage >= 60) overallGrade = 'B2';
+    else if (percentage >= 50) overallGrade = 'C';
+    else if (percentage >= 35) overallGrade = 'D';
+
+    setReportCardData({
+      exam: { name: ex?.name || 'Academic Examination' },
+      student: {
+        user: { name: stu ? `${stu.firstName} ${stu.lastName}` : 'Student' },
+        roll_number: stu?.rollNumber || '12',
+        class: { name: stu ? `Class ${stu.class}-${stu.section}` : 'Class 10' }
+      },
+      marks: marks.map(m => ({
+        subject: { name: m.subjectName },
+        marks_obtained: m.marksObtained,
+        max_marks: m.maxMarks
+      })),
+      summary: {
+        percentage: percentage.toFixed(1),
+        grade: overallGrade
+      }
+    });
+    setShowReportCardModal(true);
   };
 
   const filteredExams = exams.filter(exam =>
@@ -308,7 +242,11 @@ const ExaminationManagement: React.FC = () => {
     exam.className.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredResults = results.filter(result =>
+  const displayedResults = selectedExamFilterId
+    ? examResults.filter(r => r.examId === selectedExamFilterId)
+    : examResults;
+
+  const filteredResults = displayedResults.filter(result =>
     result.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     result.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     result.examName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -318,75 +256,78 @@ const ExaminationManagement: React.FC = () => {
     <div>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Examination & Results</h1>
-          <p className="text-gray-600">Create examinations, record student marks, and generate report cards</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Examination & Results</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
+            Schedule examinations and view student results uploaded by faculty
+          </p>
         </div>
         <div className="flex items-center space-x-3">
           {activeTab === 'exams' ? (
             <button
               onClick={handleOpenCreateExamModal}
-              className="flex items-center space-x-2 bg-[#4e74f9] hover:bg-[#3b5ccc] text-white px-4 py-2 rounded-lg transition shadow-sm"
+              className="flex items-center space-x-2 bg-[#4e74f9] hover:bg-[#3b5ccc] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-md shadow-blue-500/20"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               <span>Create Exam</span>
             </button>
           ) : (
-            <button
-              onClick={handleOpenMarksModal}
-              className="flex items-center space-x-2 bg-[#4e74f9] hover:bg-[#3b5ccc] text-white px-4 py-2 rounded-lg transition shadow-sm"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Record Marks</span>
-            </button>
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 shadow-sm">
+              <Award className="w-4 h-4" />
+              <span>Teacher App Uploads • View-Only Repository</span>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="border-b border-gray-200">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+        <div className="border-b border-gray-200 dark:border-slate-800">
           <div className="flex">
             <button
               onClick={() => setActiveTab('exams')}
-              className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium ${activeTab === 'exams'
-                  ? 'border-b-2 border-[#4e74f9] text-[#4e74f9]'
-                  : 'text-gray-600 hover:text-gray-800'
-                }`}
+              className={`flex items-center space-x-2 px-6 py-4 text-sm font-bold border-b-2 transition ${
+                activeTab === 'exams'
+                  ? 'border-[#4e74f9] text-[#4e74f9] bg-blue-50/40 dark:bg-blue-950/20'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
             >
               <FileText className="w-4 h-4" />
-              <span>Examinations</span>
+              <span>Examinations Schedule</span>
             </button>
             <button
               onClick={() => setActiveTab('results')}
-              className={`flex items-center space-x-2 px-6 py-4 text-sm font-medium ${activeTab === 'results'
-                  ? 'border-b-2 border-[#4e74f9] text-[#4e74f9]'
-                  : 'text-gray-600 hover:text-gray-800'
-                }`}
+              className={`flex items-center space-x-2 px-6 py-4 text-sm font-bold border-b-2 transition ${
+                activeTab === 'results'
+                  ? 'border-[#4e74f9] text-[#4e74f9] bg-blue-50/40 dark:bg-blue-950/20'
+                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
             >
               <Award className="w-4 h-4" />
-              <span>Results & Marks</span>
+              <span>Results & Marks (Teacher Uploaded)</span>
             </button>
           </div>
         </div>
 
-        <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder={`Search ${activeTab}...`}
+              placeholder={`Search ${activeTab === 'exams' ? 'exams by name/class' : 'results by student/subject/exam'}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] focus:border-transparent outline-none"
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:text-white outline-none text-sm"
             />
           </div>
 
           {activeTab === 'results' && exams.length > 0 && (
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">Filter Exam:</label>
+              <label className="text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider">Exam Filter:</label>
               <select
-                onChange={(e) => fetchResultsForExam(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                value={selectedExamFilterId}
+                onChange={(e) => setSelectedExamFilterId(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-[#4e74f9]"
               >
+                <option value="">All Exams</option>
                 {exams.map(ex => (
                   <option key={ex.id} value={ex.id}>{ex.name} ({ex.className})</option>
                 ))}
@@ -397,45 +338,46 @@ const ExaminationManagement: React.FC = () => {
 
         {activeTab === 'exams' ? (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exam Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">End Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-[#4e74f9] text-right text-xs font-medium uppercase">Actions</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Exam Name</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Class</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Start Date</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">End Date</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Status</th>
+                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredExams.map((exam) => (
-                  <tr key={exam.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{exam.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{exam.className}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{exam.startDate || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{exam.endDate || '-'}</td>
+                  <tr key={exam.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40">
+                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{exam.name}</td>
+                    <td className="px-6 py-4 text-gray-700 dark:text-slate-300">{exam.className}</td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{exam.startDate || '-'}</td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{exam.endDate || '-'}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${exam.status === 'completed'
-                          ? 'bg-green-100 text-green-700'
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-full capitalize ${
+                        exam.status === 'completed'
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
                           : exam.status === 'ongoing'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
+                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                          : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                      }`}>
                         {exam.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <button
                         onClick={() => handleOpenEditExamModal(exam)}
-                        className="text-gray-500 hover:text-blue-600 transition"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
                         title="Edit Exam"
                       >
                         <Edit className="w-4 h-4 inline" />
                       </button>
                       <button
                         onClick={() => handleDeleteExam(exam.id)}
-                        className="text-gray-500 hover:text-red-600 transition"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
                         title="Delete Exam"
                       >
                         <Trash2 className="w-4 h-4 inline" />
@@ -445,7 +387,7 @@ const ExaminationManagement: React.FC = () => {
                 ))}
                 {filteredExams.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                       No examinations scheduled. Click "Create Exam" to schedule an examination.
                     </td>
                   </tr>
@@ -455,41 +397,48 @@ const ExaminationManagement: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exam</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks Obtained</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Max Marks</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentage</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Report Card</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Student Name</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Exam</th>
+                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Subject</th>
+                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Marks Obtained</th>
+                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Max Marks</th>
+                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Percentage</th>
+                  <th className="px-6 py-3.5 text-center font-semibold text-gray-600 dark:text-slate-300 uppercase">Grade</th>
+                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Report Card</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredResults.map((result) => (
-                  <tr key={result.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{result.studentName}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{result.examName}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{result.subjectName}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-800">{result.marksObtained}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{result.maxMarks}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{result.percentage}%</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${result.grade === 'A' ? 'bg-green-100 text-green-700' :
-                          result.grade === 'B' ? 'bg-blue-100 text-blue-700' :
-                            result.grade === 'C' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
-                        }`}>
+                  <tr key={result.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40">
+                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                      {result.studentName}
+                      <span className="block text-[11px] font-normal text-gray-400">Roll #{result.rollNumber || '01'} • Class {result.class}-{result.section}</span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-700 dark:text-slate-300">{result.examName}</td>
+                    <td className="px-6 py-4 text-gray-700 dark:text-slate-300 font-medium">{result.subjectName}</td>
+                    <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{result.marksObtained}</td>
+                    <td className="px-6 py-4 text-right text-gray-500 dark:text-slate-400">{result.maxMarks}</td>
+                    <td className="px-6 py-4 text-right font-semibold text-gray-900 dark:text-white">{result.percentage}%</td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`px-2.5 py-1 text-xs font-extrabold rounded-full ${
+                        result.grade.startsWith('A')
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                          : result.grade.startsWith('B')
+                          ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                          : result.grade.startsWith('C')
+                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                          : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
+                      }`}>
                         {result.grade}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleViewReportCard(result.examId, result.studentId)}
-                        className="inline-flex items-center space-x-1 text-xs font-medium text-[#4e74f9] hover:text-[#3b5ccc] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition"
+                        className="inline-flex items-center space-x-1 text-xs font-bold text-[#4e74f9] hover:text-white hover:bg-[#4e74f9] bg-blue-50 dark:bg-blue-950/60 dark:text-blue-400 px-3 py-1.5 rounded-lg transition shadow-sm"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>View Card</span>
@@ -499,8 +448,8 @@ const ExaminationManagement: React.FC = () => {
                 ))}
                 {filteredResults.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                      No results recorded yet. Click "Record Marks" to enter marks for students.
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
+                      No results uploaded yet by faculty for this selection.
                     </td>
                   </tr>
                 )}
@@ -740,60 +689,60 @@ const ExaminationManagement: React.FC = () => {
 
       {/* REPORT CARD MODAL */}
       {showReportCardModal && reportCardData && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-gray-100 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowReportCardModal(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+              className="absolute right-4 top-4 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded-lg"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="text-center mb-6 border-b border-gray-200 pb-4">
-              <div className="w-12 h-12 bg-blue-100 text-[#4e74f9] rounded-full flex items-center justify-center mx-auto mb-2">
+            <div className="text-center mb-6 border-b border-gray-100 dark:border-slate-800 pb-4">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950 text-[#4e74f9] rounded-2xl flex items-center justify-center mx-auto mb-2">
                 <Award className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-bold text-gray-800">{reportCardData.exam?.name || 'Student Report Card'}</h2>
-              <p className="text-sm text-gray-600 mt-1">Student: <span className="font-semibold text-gray-800">{reportCardData.student?.user?.name || 'N/A'}</span></p>
-              <p className="text-xs text-gray-500">Roll No: {reportCardData.student?.roll_number || 'N/A'} | Class: {reportCardData.student?.class?.name || 'N/A'}</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{reportCardData.exam?.name || 'Student Report Card'}</h2>
+              <p className="text-sm text-gray-600 dark:text-slate-300 mt-1">Student: <span className="font-bold text-gray-900 dark:text-white">{reportCardData.student?.user?.name || 'N/A'}</span></p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Roll No: {reportCardData.student?.roll_number || 'N/A'} | Class: {reportCardData.student?.class?.name || 'N/A'}</p>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700">Subject Breakdown</h3>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Subject Breakdown</h3>
+              <div className="border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-slate-800/60 text-xs">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Subject</th>
-                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase">Marks</th>
-                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase">Max Marks</th>
+                      <th className="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Subject</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-gray-600 dark:text-slate-300 uppercase">Marks</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-gray-600 dark:text-slate-300 uppercase">Max Marks</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                     {(reportCardData.marks || []).map((m: any, idx: number) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-2.5 font-medium text-gray-800">{m.subject?.name || 'Subject'}</td>
-                        <td className="px-4 py-2.5 text-center text-gray-800 font-semibold">{m.marks_obtained}</td>
-                        <td className="px-4 py-2.5 text-center text-gray-600">{m.max_marks}</td>
+                      <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
+                        <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-white">{m.subject?.name || 'Subject'}</td>
+                        <td className="px-4 py-2.5 text-center text-gray-900 dark:text-white font-bold">{m.marks_obtained}</td>
+                        <td className="px-4 py-2.5 text-center text-gray-500 dark:text-slate-400">{m.max_marks}</td>
                       </tr>
                     ))}
                     {(reportCardData.marks || []).length === 0 && (
                       <tr>
-                        <td colSpan={3} className="px-4 py-4 text-center text-gray-500">No subject marks available</td>
+                        <td colSpan={3} className="px-4 py-4 text-center text-gray-500 dark:text-slate-400">No subject marks available</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
+              <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 rounded-xl p-4 flex justify-between items-center">
                 <div>
-                  <p className="text-xs font-semibold text-blue-700 uppercase">Overall Percentage</p>
-                  <p className="text-xl font-bold text-blue-900">{reportCardData.summary?.percentage || '0'}%</p>
+                  <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Overall Percentage</p>
+                  <p className="text-2xl font-extrabold text-blue-900 dark:text-blue-200">{reportCardData.summary?.percentage || '0'}%</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-semibold text-blue-700 uppercase">Overall Grade</p>
-                  <span className="px-3 py-1 text-sm font-bold bg-[#4e74f9] text-white rounded-md inline-block mt-0.5">
+                  <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Overall Grade</p>
+                  <span className="px-3 py-1 text-sm font-extrabold bg-[#4e74f9] text-white rounded-lg inline-block mt-0.5 shadow-sm">
                     {reportCardData.summary?.grade || 'N/A'}
                   </span>
                 </div>
@@ -803,7 +752,7 @@ const ExaminationManagement: React.FC = () => {
             <div className="mt-6 text-right">
               <button
                 onClick={() => setShowReportCardModal(false)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg text-sm transition"
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-200 font-bold rounded-xl text-xs transition"
               >
                 Close Report Card
               </button>

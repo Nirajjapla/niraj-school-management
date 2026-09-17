@@ -1,50 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, School, MapPin, Phone, Mail, X } from 'lucide-react';
-import { schoolApi } from '../services/api';
-
-interface SchoolData {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  logo_url?: string;
-}
+import { useData } from '../contexts/DataContext';
+import { SchoolProfile } from '../services/centralData';
 
 const SchoolManagement: React.FC = () => {
-  const [schools, setSchools] = useState<SchoolData[]>([]);
+  const { schools, addSchool, updateSchool, deleteSchool } = useData();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [currentSchool, setCurrentSchool] = useState<SchoolData | null>(null);
+  const [currentSchool, setCurrentSchool] = useState<SchoolProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  const [formData, setFormData] = useState<Partial<SchoolData>>({
+  const [formData, setFormData] = useState<Partial<SchoolProfile>>({
     name: '',
+    code: '',
+    affiliationNo: '',
     address: '',
+    city: '',
+    state: '',
     phone: '',
     email: '',
+    principalName: '',
+    establishedYear: 2000,
+    status: 'Active',
     logo_url: ''
   });
-
-  const fetchSchools = async () => {
-    try {
-      const data = await schoolApi.getSchools();
-      setSchools(data.map((item: any) => ({
-        id: String(item.id),
-        name: item.name,
-        address: item.address || '',
-        phone: item.phone || '',
-        email: item.email || '',
-        logo_url: item.logo_url || ''
-      })));
-    } catch (err) {
-      console.error('Failed to fetch schools:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchSchools();
-  }, []);
 
   const filteredSchools = schools.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,50 +34,62 @@ const SchoolManagement: React.FC = () => {
 
   const handleAdd = () => {
     setIsEditing(false);
+    setCurrentSchool(null);
     setFormData({
       name: '',
+      code: `SCH-0${schools.length + 1}`,
+      affiliationNo: 'CBSE-AFF/2026/0000',
       address: '',
+      city: 'New Delhi',
+      state: 'Delhi',
       phone: '',
       email: '',
+      principalName: '',
+      establishedYear: 2010,
+      status: 'Active',
       logo_url: ''
     });
     setShowModal(true);
   };
 
-  const handleEdit = (school: SchoolData) => {
+  const handleEdit = (school: SchoolProfile) => {
     setIsEditing(true);
     setCurrentSchool(school);
     setFormData(school);
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this school?')) {
-      try {
-        await schoolApi.deleteSchool(id);
-        fetchSchools();
-      } catch (err: any) {
-        console.error(err);
-        alert(err.message || 'Failed to delete school');
-      }
+      deleteSchool(id);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (isEditing && currentSchool) {
-        await schoolApi.updateSchool(currentSchool.id, formData);
-      } else {
-        await schoolApi.createSchool(formData);
-      }
-      setShowModal(false);
-      setCurrentSchool(null);
-      fetchSchools();
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Operation failed');
+    if (!formData.name?.trim()) return;
+
+    if (isEditing && currentSchool) {
+      updateSchool(currentSchool.id, formData);
+    } else {
+      addSchool({
+        name: formData.name.trim(),
+        code: formData.code || `SCH-${Date.now().toString().slice(-4)}`,
+        affiliationNo: formData.affiliationNo || 'CBSE-AFF/2026/0000',
+        address: formData.address || '',
+        city: formData.city || 'New Delhi',
+        state: formData.state || 'Delhi',
+        phone: formData.phone || '',
+        email: formData.email || '',
+        principalName: formData.principalName || 'Principal',
+        establishedYear: formData.establishedYear || 2015,
+        status: formData.status || 'Active',
+        logo_url: formData.logo_url || ''
+      });
     }
+
+    setShowModal(false);
+    setCurrentSchool(null);
   };
 
   return (
