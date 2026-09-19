@@ -19,7 +19,7 @@ const ExaminationManagement: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'exams' | 'results'>('exams');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedExamFilterId, setSelectedExamFilterId] = useState<string>(exams[0]?.id || '');
+  const [selectedExamFilterId, setSelectedExamFilterId] = useState<string>('');
 
   // Exam Form Modal State
   const [showExamModal, setShowExamModal] = useState(false);

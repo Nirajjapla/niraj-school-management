@@ -476,7 +476,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [conversations, setConversations] = useState<ChatConversation[]>(() => loadAndMerge('erp_conversations', initialConversations));
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(() => {
     const local = localStorage.getItem('erp_messages');
-    return local ? JSON.parse(local) : initialMessages;
+    if (!local) return initialMessages;
+    try {
+      const parsed = JSON.parse(local);
+      return typeof parsed === 'object' && parsed !== null ? parsed : initialMessages;
+    } catch {
+      return initialMessages;
+    }
   });
   const [studentAttendance, setStudentAttendance] = useState<StudentAttendanceRecord[]>(() =>
     loadAndMerge('erp_student_attendance', initialStudentAttendance)
