@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Search,
@@ -12,10 +13,13 @@ import {
   FileSpreadsheet,
   Bus,
   Users,
+  User,
+  GraduationCap,
   MapPin,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { Student, indianStates } from '../services/centralData';
 
@@ -24,8 +28,27 @@ const primaryAndSecClasses = Array.from({ length: 12 }, (_, i) => String(i + 1))
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const sectionOptions = ['A', 'B', 'C', 'D'];
 
+const StudentSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+  <section className="space-y-2.5">
+    <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
+      {title}
+    </h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</div>
+  </section>
+);
+
+const StudentDetail: React.FC<{ label: string; children: React.ReactNode; fullWidth?: boolean }> = ({ label, children, fullWidth }) => (
+  <div className={fullWidth ? 'sm:col-span-2' : undefined}>
+    <dt className="text-sm text-gray-500 dark:text-slate-400 mb-1">{label}</dt>
+    <dd className="text-sm text-gray-900 dark:text-white break-words">{children || '—'}</dd>
+  </div>
+);
+
 const StudentManagement: React.FC = () => {
   const { students, transportRoutes, addStudent, updateStudent, deleteStudent } = useData();
+
+  const currentTransportRoute = transportRoutes.find(route => route.id === currentStudent?.busRouteId);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState<string>('');
@@ -1139,101 +1162,78 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
       )}
 
       {/* View Details Modal */}
-      {showViewModal && currentStudent && (
+      {showViewModal && currentStudent && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 max-h-[90vh] flex flex-col">
+            <div className="shrink-0 flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-4">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   {currentStudent.firstName} {currentStudent.lastName}
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-slate-400">Student ID: {currentStudent.studentId}</p>
               </div>
-              <span
-                className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  currentStudent.category === 'reservation'
-                    ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
-                    : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
-                }`}
-              >
-                {currentStudent.category === 'reservation' ? 'Reservation / Concession' : 'Normal Student'}
-              </span>
-            </div>
-
-            <div className="space-y-4 text-sm">
-              {/* Academic & Bio Grid */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Class & Sec</span>
-                  <span className="font-bold text-gray-900 dark:text-white">Class {currentStudent.class} ({currentStudent.section})</span>
-                </div>
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Roll Number</span>
-                  <span className="font-bold text-gray-900 dark:text-white">{currentStudent.rollNumber}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Date of Birth</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">{currentStudent.dateOfBirth}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Blood Group</span>
-                  <span className="font-bold text-rose-600 dark:text-rose-400">{currentStudent.bloodGroup}</span>
-                </div>
-              </div>
-
-              {/* Parents Section */}
-              <div className="p-4 border border-gray-200 dark:border-slate-800 rounded-xl space-y-2">
-                <p className="text-xs font-bold uppercase text-gray-500 dark:text-slate-400">Parent & Guardian Contacts</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-2.5 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                    <span className="text-gray-500 dark:text-slate-400 block">Father:</span>
-                    <span className="font-bold text-gray-900 dark:text-white block text-sm">
-                      {currentStudent.fatherName || currentStudent.parentName}
-                    </span>
-                    <span className="text-gray-600 dark:text-slate-300">
-                      Phone: {currentStudent.fatherPhone || currentStudent.parentPhone}
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                    <span className="text-gray-500 dark:text-slate-400 block">Mother:</span>
-                    <span className="font-bold text-gray-900 dark:text-white block text-sm">
-                      {currentStudent.motherName || 'N/A'}
-                    </span>
-                    <span className="text-gray-600 dark:text-slate-300">
-                      Phone: {currentStudent.motherPhone || 'N/A'}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-600 dark:text-slate-300 flex flex-wrap gap-4 pt-1">
-                  <span><strong>Email:</strong> {currentStudent.parentEmail}</span>
-                  <span><strong>Emergency Phone:</strong> {currentStudent.emergencyContact}</span>
-                </div>
-              </div>
-
-              {/* Transport & Address */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-4 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl">
-                  <p className="text-xs font-bold uppercase text-amber-900 dark:text-amber-200 mb-1">Transport Status</p>
-                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                    {currentStudent.isAvailingTransport ? 'Availing School Transport' : 'Self Commute / Private Transport'}
-                  </p>
-                  {currentStudent.busRouteId && (
-                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                      Assigned Route ID: {currentStudent.busRouteId}
-                    </p>
-                  )}
-                </div>
-
-                <div className="p-4 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-xl">
-                  <p className="text-xs font-bold uppercase text-gray-500 dark:text-slate-400 mb-1">Residential Address</p>
-                  <p className="text-xs text-gray-800 dark:text-slate-200">
-                    {currentStudent.houseAddress || 'N/A'}, {currentStudent.city || ''}, {currentStudent.state || ''} - {currentStudent.pinCode || ''}
-                  </p>
-                </div>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                    currentStudent.category === 'reservation'
+                      ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                      : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                  }`}
+                >
+                  {currentStudent.category === 'reservation' ? 'Reservation / Concession' : 'Normal Student'}
+                </span>
+                <button
+                  aria-label="Close student details"
+                  onClick={() => setShowViewModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-5">
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-4 pr-1 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+              <StudentSection title="Personal Details" icon={User}>
+                <StudentDetail label="First Name">{currentStudent.firstName}</StudentDetail>
+                <StudentDetail label="Last Name">{currentStudent.lastName}</StudentDetail>
+                <StudentDetail label="Date of Birth">{currentStudent.dateOfBirth}</StudentDetail>
+                <StudentDetail label="Gender">{currentStudent.gender}</StudentDetail>
+                <StudentDetail label="Blood Group">{currentStudent.bloodGroup}</StudentDetail>
+              </StudentSection>
+
+              <StudentSection title="Academic Details" icon={GraduationCap}>
+                <StudentDetail label="Class">{currentStudent.class}</StudentDetail>
+                <StudentDetail label="Section">{currentStudent.section}</StudentDetail>
+                <StudentDetail label="Roll Number">{currentStudent.rollNumber}</StudentDetail>
+                <StudentDetail label="Admission Category">{currentStudent.category === 'reservation' ? 'Reservation / Concession' : 'Normal Student'}</StudentDetail>
+                <StudentDetail label="Admission Date">{currentStudent.admissionDate}</StudentDetail>
+              </StudentSection>
+
+              <StudentSection title="Parent / Guardian Details" icon={Users}>
+                <StudentDetail label="Parent / Guardian Name">{currentStudent.parentName}</StudentDetail>
+                <StudentDetail label="Parent Phone">{currentStudent.parentPhone}</StudentDetail>
+                <StudentDetail label="Father Name">{currentStudent.fatherName}</StudentDetail>
+                <StudentDetail label="Father Phone">{currentStudent.fatherPhone}</StudentDetail>
+                <StudentDetail label="Mother Name">{currentStudent.motherName}</StudentDetail>
+                <StudentDetail label="Mother Phone">{currentStudent.motherPhone}</StudentDetail>
+                <StudentDetail label="Parent Email">{currentStudent.parentEmail}</StudentDetail>
+                <StudentDetail label="Emergency Phone">{currentStudent.emergencyContact}</StudentDetail>
+              </StudentSection>
+
+              <StudentSection title="Transport & Location" icon={Bus}>
+                <StudentDetail label="Transport Status">
+                  {currentStudent.isAvailingTransport ? 'Availing School Transport' : 'Self Commute / Private Transport'}
+                </StudentDetail>
+                <StudentDetail label="Transport Route">
+                  {currentTransportRoute ? `${currentTransportRoute.routeNumber} - ${currentTransportRoute.routeTitle}` : currentStudent.busRouteId ? `Route ID: ${currentStudent.busRouteId}` : 'No School Transport'}
+                </StudentDetail>
+                <StudentDetail label="Residential Address" fullWidth>
+                  {[currentStudent.houseAddress, currentStudent.city, currentStudent.state, currentStudent.pinCode].filter(Boolean).join(', ')}
+                </StudentDetail>
+              </StudentSection>
+            </div>
+
+            <div className="shrink-0 flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-4">
               <button
                 onClick={() => setShowViewModal(false)}
                 className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700"
@@ -1242,11 +1242,12 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Confirmation Modal */}
-      {showConfirm && (
+      {showConfirm && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 text-center">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Delete Student?</h3>
@@ -1268,7 +1269,8 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
