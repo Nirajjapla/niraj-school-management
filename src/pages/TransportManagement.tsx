@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Search,
@@ -281,80 +282,58 @@ const TransportManagement: React.FC = () => {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Route</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Vehicle & Type</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Driver & Co-Driver</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Bus Timings (Morning & Evening)</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Capacity</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Status</th>
-                    <th className="px-5 py-3.5 text-center font-semibold text-gray-600 dark:text-slate-300">Actions</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Route</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Vehicle & Type</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Driver & Co-Driver</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Bus Timings</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Capacity</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {filteredRoutes.map((route) => (
                     <tr key={route.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                      <td className="px-5 py-4">
-                        <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-mono">
-                            {route.routeNumber}
-                          </span>
-                          <span>{route.routeTitle}</span>
+                      <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
+                        <div>
+                          <span className="text-gray-900 dark:text-white block">{route.routeNumber} - {route.routeTitle}</span>
+                          <span className="text-xs text-gray-500 dark:text-slate-400 block line-clamp-1 max-w-xs">{route.descriptionString}</span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-1 max-w-xs">
-                          {route.descriptionString}
-                        </p>
                       </td>
 
-                      <td className="px-5 py-4">
-                        <span className="font-semibold text-gray-900 dark:text-white block">{route.vehicleNumber}</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500 dark:text-slate-400">{route.vehicleType}</span>
-                          <span
-                            className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                              route.isAC
-                                ? 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300'
-                                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
-                            }`}
-                          >
-                            {route.isAC ? 'AC' : 'Non-AC'}
+                      <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
+                        <div>
+                          <span className="text-gray-900 dark:text-white block">{route.vehicleNumber}</span>
+                          <span className="text-xs text-gray-500 dark:text-slate-400">
+                            {route.vehicleType} • {route.isAC ? 'AC' : 'Non-AC'}
                           </span>
                         </div>
                       </td>
 
-                      <td className="px-5 py-4">
-                        <div className="text-gray-900 dark:text-white font-medium flex items-center gap-1.5">
-                          <span>{route.driverName}</span>
-                        </div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 font-mono mt-0.5 flex items-center gap-1">
-                          <Phone className="w-3 h-3" /> {route.driverPhone}
-                        </p>
-                        {route.coDriverName && (
-                          <div className="mt-1.5 pt-1.5 border-t border-gray-100 dark:border-slate-800/60 text-[11px] text-gray-500 dark:text-slate-400">
-                            <span>Co-Driver: {route.coDriverName}</span>
-                            <span className="block font-mono text-gray-600 dark:text-slate-300">{route.coDriverPhone}</span>
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-5 py-4 text-xs">
-                        <div className="space-y-1">
-                          <p className="text-gray-800 dark:text-slate-200">
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">Pickup:</span> {route.morningPickupSchedule}
-                          </p>
-                          <p className="text-gray-800 dark:text-slate-200">
-                            <span className="font-semibold text-amber-600 dark:text-amber-400">Drop:</span> {route.eveningDropDuration}
-                          </p>
+                      <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
+                        <div>
+                          <span className="text-gray-900 dark:text-white block">{route.driverName}</span>
+                          <span className="text-xs text-gray-500 dark:text-slate-400 block">{route.driverPhone}</span>
+                          {route.coDriverName && (
+                            <span className="text-xs text-gray-500 dark:text-slate-400 block">Co-Driver: {route.coDriverName}</span>
+                          )}
                         </div>
                       </td>
 
-                      <td className="px-5 py-4">
-                        <span className="font-bold text-gray-900 dark:text-white">{route.assignedStudentsCount || 0}</span>
-                        <span className="text-gray-500 dark:text-slate-400 text-xs"> / {route.capacity} Seats</span>
+                      <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300 text-xs">
+                        <div className="space-y-0.5">
+                          <p><span className="text-gray-500 dark:text-slate-400">Pickup:</span> {route.morningPickupSchedule}</p>
+                          <p><span className="text-gray-500 dark:text-slate-400">Drop:</span> {route.eveningDropDuration}</p>
+                        </div>
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
+                        {route.assignedStudentsCount || 0} / {route.capacity} Seats
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
                         <span
-                          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                          className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full ${
                             route.status === 'active'
                               ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
                               : route.status === 'maintenance'
@@ -370,7 +349,7 @@ const TransportManagement: React.FC = () => {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => handleView(route)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-lg transition"
+                            className="p-1.5 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition"
                             title="View Route Details"
                           >
                             <Eye className="w-4 h-4" />
@@ -407,11 +386,11 @@ const TransportManagement: React.FC = () => {
             {transportRoutes.map((route) => (
               <div
                 key={route.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-6 space-y-4"
+                className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5 space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="font-bold text-base text-gray-900 dark:text-white block">{route.vehicleNumber}</span>
+                    <span className="font-semibold text-base text-gray-900 dark:text-white block">{route.vehicleNumber}</span>
                     <span className="text-xs text-gray-500 dark:text-slate-400">
                       {route.routeNumber} - {route.routeTitle} ({route.vehicleType})
                     </span>
@@ -427,52 +406,41 @@ const TransportManagement: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="space-y-2.5 text-xs pt-2 border-t border-gray-100 dark:border-slate-800">
+                <div className="space-y-2 text-xs pt-2 border-t border-gray-100 dark:border-slate-800">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5 text-amber-500" /> Fitness Expiry:
-                    </span>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{route.assetDetails.fitnessExpiry}</span>
+                    <span className="text-gray-500 dark:text-slate-400">Fitness Expiry:</span>
+                    <span className="text-gray-800 dark:text-slate-200">{route.assetDetails.fitnessExpiry}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5 text-blue-500" /> Insurance Expiry:
-                    </span>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{route.assetDetails.insuranceExpiry}</span>
+                    <span className="text-gray-500 dark:text-slate-400">Insurance Expiry:</span>
+                    <span className="text-gray-800 dark:text-slate-200">{route.assetDetails.insuranceExpiry}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <Wrench className="w-3.5 h-3.5 text-purple-500" /> Next Service Due:
-                    </span>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{route.assetDetails.serviceDueDate}</span>
+                    <span className="text-gray-500 dark:text-slate-400">Next Service Due:</span>
+                    <span className="text-gray-800 dark:text-slate-200">{route.assetDetails.serviceDueDate}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <Radio className="w-3.5 h-3.5 text-emerald-500" /> GPS Tracking:
-                    </span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{route.assetDetails.gpsStatus}</span>
+                    <span className="text-gray-500 dark:text-slate-400">GPS Tracking:</span>
+                    <span className="text-gray-800 dark:text-slate-200">{route.assetDetails.gpsStatus}</span>
                   </div>
                 </div>
 
                 {route.assetDetails.ownership === 'Leased / Vendor' && route.assetDetails.vendorName && (
-                  <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800/40 text-xs text-purple-900 dark:text-purple-200 space-y-1">
-                    <div className="font-bold flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5" /> Vendor Information:
-                    </div>
-                    <p>{route.assetDetails.vendorName}</p>
-                    <p className="font-mono text-[11px]">{route.assetDetails.vendorPhone}</p>
-                    <p className="text-[11px] text-purple-700 dark:text-purple-300">{route.assetDetails.vendorAddress}</p>
+                  <div className="p-3 bg-gray-50 dark:bg-slate-800/60 rounded-xl border border-gray-100 dark:border-slate-700/60 text-xs text-gray-700 dark:text-slate-300 space-y-1">
+                    <div className="font-semibold">Vendor: {route.assetDetails.vendorName}</div>
+                    <p className="text-gray-500 dark:text-slate-400">{route.assetDetails.vendorPhone}</p>
+                    <p className="text-gray-500 dark:text-slate-400">{route.assetDetails.vendorAddress}</p>
                   </div>
                 )}
 
                 <button
                   onClick={() => handleView(route)}
-                  className="w-full py-2 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-200 text-xs font-semibold rounded-xl transition"
+                  className="w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 text-xs font-medium rounded-xl border border-gray-200 dark:border-slate-700 transition"
                 >
-                  View Full Asset Specs
+                  View Route & Asset Details
                 </button>
               </div>
             ))}
@@ -481,10 +449,10 @@ const TransportManagement: React.FC = () => {
       )}
 
       {/* Add / Edit Route Modal */}
-      {showModal && (
+      {showModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   {isEditing ? 'Edit Route & Vehicle' : 'Add New Route & Vehicle'}
@@ -493,356 +461,358 @@ const TransportManagement: React.FC = () => {
                   Multi-route schedule timing, driver alignment, vehicle specifications & asset details
                 </p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Route & Timing details */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Route Number *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. R-101"
-                    value={formData.routeNumber}
-                    onChange={(e) => setFormData({ ...formData, routeNumber: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm font-bold"
-                    required
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">
+                  Required fields are marked with an asterisk (<span className="text-red-500">*</span>)
+                </p>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Route Title *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. North City Express, South Campus Line"
-                    value={formData.routeTitle}
-                    onChange={(e) => setFormData({ ...formData, routeTitle: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-3">
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Route Description (Stops list) *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Railway Station -> Gandhi Chowk -> Civil Lines -> Campus"
-                    value={formData.descriptionString}
-                    onChange={(e) => setFormData({ ...formData, descriptionString: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Morning Pickup Schedule *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 07:15 AM - 08:00 AM"
-                    value={formData.morningPickupSchedule}
-                    onChange={(e) => setFormData({ ...formData, morningPickupSchedule: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Evening Drop Duration *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 02:30 PM - 03:30 PM"
-                    value={formData.eveningDropDuration}
-                    onChange={(e) => setFormData({ ...formData, eveningDropDuration: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Route Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                  >
-                    <option value="active">Active</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Vehicle & AC Specs */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3">
-                  Vehicle Specifications
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Vehicle Reg Number *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="DL-01-AB-1234"
-                      value={formData.vehicleNumber}
-                      onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm font-semibold"
-                      required
-                    />
+                {/* Section 1: Route & Schedule Details */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Bus className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Route & Schedule Details</span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Vehicle Type *
-                    </label>
-                    <select
-                      value={formData.vehicleType}
-                      onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value as any })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      <option value="Bus">Bus</option>
-                      <option value="Mini Bus">Mini Bus</option>
-                      <option value="Van">Van</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      AC / Non-AC *
-                    </label>
-                    <select
-                      value={formData.isAC ? 'true' : 'false'}
-                      onChange={(e) => setFormData({ ...formData, isAC: e.target.value === 'true' })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      <option value="true">AC (Air Conditioned)</option>
-                      <option value="false">Non-AC</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Passenger Capacity *
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.capacity}
-                      onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Driver & Co-Driver Auto Alignment */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3">
-                  Driver & Co-Driver Assignment
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Primary Driver */}
-                  <div className="p-4 bg-gray-50 dark:bg-slate-800/60 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
-                    <label className="block text-xs font-bold uppercase text-gray-700 dark:text-slate-200">
-                      Primary Driver *
-                    </label>
-                    <select
-                      value={formData.driverId}
-                      onChange={(e) => handleDriverChange(e.target.value)}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>{d.name} ({d.phone})</option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                     <div>
-                      <span className="text-[11px] text-gray-500 dark:text-slate-400 block mb-1">Auto-Aligned Driver Phone:</span>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Route Number <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
-                        value={formData.driverPhone || ''}
-                        readOnly
-                        className="w-full px-3 py-1.5 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-200 rounded-lg text-xs font-mono font-semibold"
+                        placeholder="e.g. R-101"
+                        value={formData.routeNumber}
+                        onChange={(e) => setFormData({ ...formData, routeNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
                       />
                     </div>
-                  </div>
 
-                  {/* Co-Driver */}
-                  <div className="p-4 bg-gray-50 dark:bg-slate-800/60 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
-                    <label className="block text-xs font-bold uppercase text-gray-700 dark:text-slate-200">
-                      Co-Driver / Attendant (Optional)
-                    </label>
-                    <select
-                      value={formData.coDriverId || ''}
-                      onChange={(e) => handleCoDriverChange(e.target.value)}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      <option value="">No Co-Driver</option>
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>{d.name} ({d.phone})</option>
-                      ))}
-                    </select>
                     <div>
-                      <span className="text-[11px] text-gray-500 dark:text-slate-400 block mb-1">Auto-Aligned Co-Driver Phone:</span>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Route Title <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
-                        value={formData.coDriverPhone || 'None'}
-                        readOnly
-                        className="w-full px-3 py-1.5 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-200 rounded-lg text-xs font-mono font-semibold"
+                        placeholder="e.g. North City Express"
+                        value={formData.routeTitle}
+                        onChange={(e) => setFormData({ ...formData, routeTitle: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Route Description (Stops list) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Railway Station -> Gandhi Chowk -> Civil Lines -> Campus"
+                        value={formData.descriptionString}
+                        onChange={(e) => setFormData({ ...formData, descriptionString: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Morning Pickup Schedule <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 07:15 AM - 08:00 AM"
+                        value={formData.morningPickupSchedule}
+                        onChange={(e) => setFormData({ ...formData, morningPickupSchedule: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Evening Drop Duration <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 02:30 PM - 03:30 PM"
+                        value={formData.eveningDropDuration}
+                        onChange={(e) => setFormData({ ...formData, eveningDropDuration: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Route Status <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      >
+                        <option value="active">Active</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Vehicle Specifications */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Wrench className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Vehicle Specifications</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Vehicle Reg Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="DL-01-AB-1234"
+                        value={formData.vehicleNumber}
+                        onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Vehicle Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.vehicleType}
+                        onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      >
+                        <option value="Bus">Bus</option>
+                        <option value="Mini Bus">Mini Bus</option>
+                        <option value="Van">Van</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Air Conditioning <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.isAC ? 'true' : 'false'}
+                        onChange={(e) => setFormData({ ...formData, isAC: e.target.value === 'true' })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      >
+                        <option value="true">AC (Air Conditioned)</option>
+                        <option value="false">Non-AC</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Passenger Capacity (Seats) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.capacity}
+                        onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
                       />
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Asset Management Specs */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3">
-                  Fleet Asset Management & Expiry Dates
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Fitness Certificate Expiry *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.assetDetails?.fitnessExpiry}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        assetDetails: { ...(formData.assetDetails as any), fitnessExpiry: e.target.value }
-                      })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
+                {/* Section 3: Driver & Crew Assignment */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Phone className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Driver & Crew Assignment</span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Insurance Expiry *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.assetDetails?.insuranceExpiry}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        assetDetails: { ...(formData.assetDetails as any), insuranceExpiry: e.target.value }
-                      })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Primary Driver <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.driverId}
+                        onChange={(e) => handleDriverChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      >
+                        {drivers.map(d => (
+                          <option key={d.id} value={d.id}>{d.name} ({d.phone})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Co-Driver / Attendant (Optional)
+                      </label>
+                      <select
+                        value={formData.coDriverId || ''}
+                        onChange={(e) => handleCoDriverChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      >
+                        <option value="">No Co-Driver</option>
+                        {drivers.map(d => (
+                          <option key={d.id} value={d.id}>{d.name} ({d.phone})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Fleet Compliance & Ownership */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <ShieldAlert className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Fleet Compliance & Ownership</span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Service Due Date *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.assetDetails?.serviceDueDate}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        assetDetails: { ...(formData.assetDetails as any), serviceDueDate: e.target.value }
-                      })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Fitness Certificate Expiry <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.assetDetails?.fitnessExpiry}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          assetDetails: { ...(formData.assetDetails as any), fitnessExpiry: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Insurance Expiry <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.assetDetails?.insuranceExpiry}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          assetDetails: { ...(formData.assetDetails as any), insuranceExpiry: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Next Service Due Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.assetDetails?.serviceDueDate}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          assetDetails: { ...(formData.assetDetails as any), serviceDueDate: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Ownership Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.assetDetails?.ownership}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          assetDetails: { ...(formData.assetDetails as any), ownership: e.target.value as any }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      >
+                        <option value="Owned">School Owned</option>
+                        <option value="Leased / Vendor">Leased / Vendor Owned</option>
+                      </select>
+                    </div>
+
+                    {formData.assetDetails?.ownership === 'Leased / Vendor' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                            Vendor Name <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. SafeTravels Pvt Ltd"
+                            value={formData.assetDetails?.vendorName || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              assetDetails: { ...(formData.assetDetails as any), vendorName: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                            Vendor Phone <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder="+91 98111 22334"
+                            value={formData.assetDetails?.vendorPhone || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              assetDetails: { ...(formData.assetDetails as any), vendorPhone: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                            Vendor Address <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Transport Hub, Sector 18, City"
+                            value={formData.assetDetails?.vendorAddress || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              assetDetails: { ...(formData.assetDetails as any), vendorAddress: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Ownership Type *
-                    </label>
-                    <select
-                      value={formData.assetDetails?.ownership}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        assetDetails: { ...(formData.assetDetails as any), ownership: e.target.value as any }
-                      })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      <option value="Owned">School Owned</option>
-                      <option value="Leased / Vendor">Leased / Vendor Owned</option>
-                    </select>
-                  </div>
-
-                  {formData.assetDetails?.ownership === 'Leased / Vendor' && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                          Vendor Name *
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. SafeTravels Pvt Ltd"
-                          value={formData.assetDetails?.vendorName || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            assetDetails: { ...(formData.assetDetails as any), vendorName: e.target.value }
-                          })}
-                          className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                          Vendor Phone *
-                        </label>
-                        <input
-                          type="tel"
-                          placeholder="+91 98111 22334"
-                          value={formData.assetDetails?.vendorPhone || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            assetDetails: { ...(formData.assetDetails as any), vendorPhone: e.target.value }
-                          })}
-                          className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                          required
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                          Vendor Address *
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Transport Hub, Sector 18, City"
-                          value={formData.assetDetails?.vendorAddress || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            assetDetails: { ...(formData.assetDetails as any), vendorAddress: e.target.value }
-                          })}
-                          className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                          required
-                        />
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+              <div className="p-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
@@ -855,117 +825,170 @@ const TransportManagement: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* View Route Details Modal */}
-      {showViewModal && selectedRoute && (
+      {showViewModal && selectedRoute && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-sm font-mono">
-                    {selectedRoute.routeNumber}
-                  </span>
-                  <span>{selectedRoute.routeTitle}</span>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Route Details
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Vehicle: {selectedRoute.vehicleNumber}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  {selectedRoute.routeNumber} - {selectedRoute.routeTitle}
+                </p>
               </div>
-              <span
-                className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  selectedRoute.status === 'active'
-                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                }`}
-              >
-                {selectedRoute.status.toUpperCase()}
-              </span>
-            </div>
-
-            <div className="space-y-4 text-sm">
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl space-y-2 border border-slate-100 dark:border-slate-700/60">
-                <div className="font-bold text-gray-800 dark:text-slate-200 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#4e74f9]" /> Route Stops
-                </div>
-                <p className="text-gray-700 dark:text-slate-300 text-xs">{selectedRoute.descriptionString}</p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Morning Pickup</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{selectedRoute.morningPickupSchedule}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Evening Drop</span>
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">{selectedRoute.eveningDropDuration}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Vehicle Type</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {selectedRoute.vehicleType} ({selectedRoute.isAC ? 'AC' : 'Non-AC'})
-                  </span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Assigned Driver</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{selectedRoute.driverName}</span>
-                  <span className="text-xs text-blue-600 dark:text-blue-400 block font-mono">{selectedRoute.driverPhone}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Co-Driver / Attendant</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{selectedRoute.coDriverName || 'None'}</span>
-                  {selectedRoute.coDriverPhone && (
-                    <span className="text-xs text-gray-600 dark:text-slate-400 block font-mono">{selectedRoute.coDriverPhone}</span>
-                  )}
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Seating Capacity</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{selectedRoute.assignedStudentsCount} / {selectedRoute.capacity}</span>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-3">
-                <h4 className="text-xs font-bold uppercase text-gray-500 dark:text-slate-400 mb-2">
-                  Asset Compliance & Expirations
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 dark:bg-slate-800/40 p-3 rounded-xl text-xs">
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Fitness Expiry</span>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{selectedRoute.assetDetails.fitnessExpiry}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Insurance Expiry</span>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{selectedRoute.assetDetails.insuranceExpiry}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Next Service</span>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{selectedRoute.assetDetails.serviceDueDate}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Ownership</span>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{selectedRoute.assetDetails.ownership}</span>
-                  </div>
-                </div>
-
-                {selectedRoute.assetDetails.ownership === 'Leased / Vendor' && selectedRoute.assetDetails.vendorName && (
-                  <div className="mt-3 p-3 bg-purple-50 dark:bg-purple-950/40 rounded-xl text-xs text-purple-900 dark:text-purple-200 space-y-1">
-                    <p className="font-bold">Vendor: {selectedRoute.assetDetails.vendorName} ({selectedRoute.assetDetails.vendorPhone})</p>
-                    <p className="text-purple-700 dark:text-purple-300">{selectedRoute.assetDetails.vendorAddress}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-4">
               <button
                 onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700"
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Section 1: Route & Schedule Details */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                  <Bus className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Route & Schedule</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Route Number:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.routeNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Route Title:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.routeTitle}</span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-gray-500 dark:text-slate-400 block">Route Stops:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.descriptionString}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Morning Pickup:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.morningPickupSchedule}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Evening Drop:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.eveningDropDuration}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Status:</span>
+                    <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                      {selectedRoute.status.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Vehicle Specifications */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                  <Wrench className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Vehicle Specifications</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Vehicle Reg Number:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.vehicleNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Vehicle Type:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.vehicleType}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Air Conditioning:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.isAC ? 'AC' : 'Non-AC'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Seating Capacity:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.assignedStudentsCount || 0} / {selectedRoute.capacity} Seats</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Driver & Crew Details */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                  <Phone className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Driver & Crew</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Primary Driver:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.driverName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Driver Phone:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.driverPhone}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Co-Driver / Attendant:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.coDriverName || 'None'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Co-Driver Phone:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.coDriverPhone || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Asset Compliance & Ownership */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                  <ShieldAlert className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Compliance & Ownership</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Fitness Certificate Expiry:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.assetDetails.fitnessExpiry}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Insurance Expiry:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.assetDetails.insuranceExpiry}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Next Service Due:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.assetDetails.serviceDueDate}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-slate-400 block">Ownership:</span>
+                    <span className="text-gray-800 dark:text-slate-200 font-medium">{selectedRoute.assetDetails.ownership}</span>
+                  </div>
+                  {selectedRoute.assetDetails.ownership === 'Leased / Vendor' && selectedRoute.assetDetails.vendorName && (
+                    <div className="sm:col-span-2 pt-1">
+                      <span className="text-gray-500 dark:text-slate-400 block">Vendor Details:</span>
+                      <span className="text-gray-800 dark:text-slate-200 font-medium">
+                        {selectedRoute.assetDetails.vendorName} ({selectedRoute.assetDetails.vendorPhone}) - {selectedRoute.assetDetails.vendorAddress}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 dark:border-slate-800 flex justify-end shrink-0">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
               >
                 Close
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

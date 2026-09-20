@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, X, GraduationCap, Briefcase, User, MapPin, Heart } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  X,
+  GraduationCap,
+  Briefcase,
+  User,
+  Users,
+  MapPin,
+  Heart
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { indianStates } from '../services/centralData';
 
@@ -36,6 +51,33 @@ interface Teacher {
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed'] as const;
+
+const FormSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+  <section className="space-y-3">
+    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
+      {title}
+    </h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</div>
+  </section>
+);
+
+const TeacherSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+  <section className="space-y-3">
+    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
+      {title}
+    </h3>
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
+  </section>
+);
+
+const TeacherDetail: React.FC<{ label: string; children: React.ReactNode; fullWidth?: boolean }> = ({ label, children, fullWidth }) => (
+  <div className={fullWidth ? 'sm:col-span-2' : undefined}>
+    <dt className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">{label}</dt>
+    <dd className="text-sm text-gray-900 dark:text-white break-words">{children || '—'}</dd>
+  </div>
+);
 
 const TeacherManagement: React.FC = () => {
   const { teachers: rawTeachers, classes: dbClasses, subjects: dbSubjects, addEmployee, updateEmployee, deleteEmployee } = useData();
@@ -310,70 +352,59 @@ const TeacherManagement: React.FC = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
               <tr>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Teacher ID</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Faculty Name</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Subject</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Class & Sec</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Experience</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Phone</th>
-                <th className="px-5 py-3.5 text-center font-semibold text-gray-600 dark:text-slate-300">Actions</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Teacher ID</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Faculty Name</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Subject</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Class & Sec</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Experience</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Phone</th>
+                <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {filteredTeachers.map((teacher) => (
                 <tr key={teacher.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                  <td className="px-5 py-4 font-mono font-medium text-xs text-blue-600 dark:text-blue-400">
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                     {teacher.teacherId}
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 text-[#4e74f9] flex items-center justify-center font-bold text-xs">
-                        {teacher.firstName.charAt(0)}{teacher.lastName.charAt(0)}
-                      </div>
-                      <div>
-                        <span className="font-semibold text-gray-900 dark:text-white block">
-                          {teacher.firstName} {teacher.lastName}
-                        </span>
-                        <span className="text-[11px] text-gray-400 dark:text-slate-400 block">
-                          {teacher.qualification}
-                        </span>
-                      </div>
-                    </div>
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                    {teacher.firstName} {teacher.lastName}
                   </td>
-                  <td className="px-5 py-4 text-gray-800 dark:text-slate-200 font-medium">
-                    <span className="inline-block px-2.5 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-lg">
-                      {teacher.subject}
-                    </span>
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                    {teacher.subject}
                   </td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-300">
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                     Class {teacher.className} ({teacher.section})
                   </td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-300 text-xs">
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                     {teacher.experienceYears}y {teacher.experienceMonths}m
                   </td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-300 font-mono text-xs">
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                     {teacher.phone}
                   </td>
                   <td className="px-5 py-4 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <button
                         onClick={() => handleView(teacher)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-lg transition"
+                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
                         title="View Full Profile"
+                        aria-label={`View details for ${teacher.firstName} ${teacher.lastName}`}
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(teacher)}
-                        className="p-1.5 text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-lg transition"
+                        className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
                         title="Edit Teacher"
+                        aria-label={`Edit ${teacher.firstName} ${teacher.lastName}`}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(teacher.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/60 rounded-lg transition"
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
                         title="Delete Teacher"
+                        aria-label={`Delete ${teacher.firstName} ${teacher.lastName}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -381,522 +412,484 @@ const TeacherManagement: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {filteredTeachers.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+                    No teacher records found matching your filters.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Add / Edit Modal */}
-      {showModal && (
+      {showModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   {isEditing ? 'Edit Teacher Profile' : 'Add New Teacher'}
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Academic assignments, marital status, experience, and contact details
+                  <span className="text-red-500 font-semibold">*</span> Indicates required field
                 </p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Basic & Academic Information */}
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-blue-500" />
-                  Faculty & Academic Assignment
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      First Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Last Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Subject Specialization *
-                    </label>
-                    <select
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    >
-                      <option value="">Select Subject</option>
-                      {Array.from(new Set(dbSubjects.map(s => s.name))).map((sub) => (
-                        <option key={sub} value={sub}>{sub}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Assigned Class *
-                    </label>
-                    <select
-                      value={formData.className}
-                      onChange={(e) => setFormData({ ...formData, className: e.target.value, section: 'A' })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    >
-                      <option value="">Select Class</option>
-                      {dbClasses.map((cls) => (
-                        <option key={cls.id} value={cls.name}>Class {cls.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Assigned Section *
-                    </label>
-                    <select
-                      value={formData.section}
-                      onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    >
-                      {formData.className ? (
-                        (dbClasses.find(c => c.name === formData.className)?.sections || []).map((sec) => (
-                          <option key={sec.id} value={sec.name}>Section {sec.name}</option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="A">Section A</option>
-                          <option value="B">Section B</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Qualifications
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. M.Sc. (Physics), B.Ed., CTET"
-                      value={formData.qualification}
-                      onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleSubmit} id="teacher-form" className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+              {/* Section 1: Personal Details */}
+              <FormSection title="Personal Details" icon={User}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.firstName || ''}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
                 </div>
-              </div>
 
-              {/* Personal & Family Details */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
-                  <User className="w-4 h-4 text-purple-500" />
-                  Personal, Marital & Family Information
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Gender
-                    </label>
-                    <select
-                      value={formData.gender}
-                      onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      <option value="Female">Female</option>
-                      <option value="Male">Male</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Marital Status *
-                    </label>
-                    <select
-                      value={formData.maritalStatus || 'Single'}
-                      onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value as any })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      {maritalStatuses.map(ms => (
-                        <option key={ms} value={ms}>{ms}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Blood Group
-                    </label>
-                    <select
-                      value={formData.bloodGroup}
-                      onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    >
-                      {bloodGroups.map(bg => (
-                        <option key={bg} value={bg}>{bg}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Father's Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Father's full name"
-                      value={formData.fatherName}
-                      onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Spouse's Name (If Married)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Spouse name"
-                      value={formData.spouseName}
-                      onChange={(e) => setFormData({ ...formData, spouseName: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Date of Birth *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.dob}
-                      onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.lastName || ''}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
                 </div>
-              </div>
 
-              {/* Teaching Experience & Joining */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-emerald-500" />
-                  Teaching Experience & Date of Joining
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Experience (Years)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={40}
-                      value={formData.experienceYears}
-                      onChange={(e) => setFormData({ ...formData, experienceYears: Number(e.target.value) })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Experience (Months)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={11}
-                      value={formData.experienceMonths}
-                      onChange={(e) => setFormData({ ...formData, experienceMonths: Number(e.target.value) })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Joining Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.joiningDate}
-                      onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dob || ''}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
                 </div>
-              </div>
 
-              {/* Contact & Complete Address */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-rose-500" />
-                  Contact Details & Residential Address
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Emergency Phone
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.emergencyContact}
-                      onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-3">
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      Street Address *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="House/Apartment number, street name"
-                      value={formData.address?.street || ''}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          address: { ...formData.address!, street: e.target.value }
-                        })
-                      }
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      City *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.address?.city || ''}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          address: { ...formData.address!, city: e.target.value }
-                        })
-                      }
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      State (Indian State Dropdown) *
-                    </label>
-                    <select
-                      value={formData.address?.state || 'Delhi'}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          address: { ...formData.address!, state: e.target.value }
-                        })
-                      }
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    >
-                      {indianStates.map(st => (
-                        <option key={st} value={st}>{st}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                      ZIP / PIN Code *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.address?.zip || ''}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          address: { ...formData.address!, zip: e.target.value }
-                        })
-                      }
-                      className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender || 'Female'}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  >
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-sm"
-                >
-                  {isEditing ? 'Update Teacher' : 'Add Teacher'}
-                </button>
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Marital Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.maritalStatus || 'Single'}
+                    onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  >
+                    {maritalStatuses.map(ms => (
+                      <option key={ms} value={ms}>{ms}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Blood Group
+                  </label>
+                  <select
+                    value={formData.bloodGroup || 'B+'}
+                    onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  >
+                    {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone || ''}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Emergency Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.emergencyContact || ''}
+                    onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Street Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="House/Apartment number, street name"
+                    value={formData.address?.street || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        address: { ...formData.address!, street: e.target.value }
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    City <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address?.city || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        address: { ...formData.address!, city: e.target.value }
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.address?.state || 'Delhi'}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        address: { ...formData.address!, state: e.target.value }
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  >
+                    {indianStates.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    ZIP / PIN Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address?.zip || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        address: { ...formData.address!, zip: e.target.value }
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+              </FormSection>
+
+              {/* Section 2: Professional & Academic Details */}
+              <FormSection title="Professional & Academic Details" icon={GraduationCap}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Subject Specialization <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.subject || ''}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  >
+                    <option value="">Select Subject</option>
+                    {Array.from(new Set(dbSubjects.map(s => s.name))).map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Qualifications
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. M.Sc. (Physics), B.Ed."
+                    value={formData.qualification || ''}
+                    onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Joining Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.joiningDate || ''}
+                    onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Experience (Years)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={40}
+                    value={formData.experienceYears ?? 0}
+                    onChange={(e) => setFormData({ ...formData, experienceYears: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Experience (Months)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={11}
+                    value={formData.experienceMonths ?? 0}
+                    onChange={(e) => setFormData({ ...formData, experienceMonths: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+              </FormSection>
+
+              {/* Section 3: Family & Background Details */}
+              <FormSection title="Family & Background Details" icon={Users}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Father's Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Father's full name"
+                    value={formData.fatherName || ''}
+                    onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Spouse's Name (If Married)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Spouse name"
+                    value={formData.spouseName || ''}
+                    onChange={(e) => setFormData({ ...formData, spouseName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+              </FormSection>
+
+              {/* Section 4: Class Assignment */}
+              <FormSection title="Class Assignment" icon={Briefcase}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Assigned Class <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.className || ''}
+                    onChange={(e) => setFormData({ ...formData, className: e.target.value, section: 'A' })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  >
+                    <option value="">Select Class</option>
+                    {dbClasses.map((cls) => (
+                      <option key={cls.id} value={cls.name}>Class {cls.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Assigned Section <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.section || 'A'}
+                    onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  >
+                    {formData.className ? (
+                      (dbClasses.find(c => c.name === formData.className)?.sections || []).map((sec) => (
+                        <option key={sec.id} value={sec.name}>Section {sec.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="A">Section A</option>
+                        <option value="B">Section B</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </FormSection>
             </form>
+
+            {/* Fixed Footer */}
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="teacher-form"
+                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
+              >
+                {isEditing ? 'Save Changes' : 'Add Teacher'}
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* View Modal */}
-      {showViewModal && currentTeacher && (
+      {showViewModal && currentTeacher && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-950 text-[#4e74f9] flex items-center justify-center font-bold text-base">
-                  {currentTeacher.firstName.charAt(0)}{currentTeacher.lastName.charAt(0)}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {currentTeacher.firstName} {currentTeacher.lastName}
-                  </h2>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">
-                    ID: {currentTeacher.teacherId} • {currentTeacher.subject} Teacher
-                  </p>
-                </div>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {currentTeacher.firstName} {currentTeacher.lastName}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Teacher ID: {currentTeacher.teacherId} • {currentTeacher.subject} Teacher
+                </p>
               </div>
-              <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowViewModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-4 text-sm">
-              {/* Academic Grid */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Assigned Class</span>
-                  <span className="font-bold text-gray-900 dark:text-white">Class {currentTeacher.className} ({currentTeacher.section})</span>
-                </div>
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Specialization</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">{currentTeacher.subject}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Experience</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">
-                    {currentTeacher.experienceYears} Years {currentTeacher.experienceMonths} Months
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[11px] uppercase text-gray-500 dark:text-slate-400 block">Blood Group</span>
-                  <span className="font-bold text-rose-600 dark:text-rose-400">{currentTeacher.bloodGroup}</span>
-                </div>
-              </div>
+            {/* Scrollable Body */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+              <TeacherSection title="Personal Details" icon={User}>
+                <TeacherDetail label="First Name">{currentTeacher.firstName}</TeacherDetail>
+                <TeacherDetail label="Last Name">{currentTeacher.lastName}</TeacherDetail>
+                <TeacherDetail label="Date of Birth">{currentTeacher.dob}</TeacherDetail>
+                <TeacherDetail label="Gender">{currentTeacher.gender}</TeacherDetail>
+                <TeacherDetail label="Marital Status">{currentTeacher.maritalStatus}</TeacherDetail>
+                <TeacherDetail label="Blood Group">{currentTeacher.bloodGroup}</TeacherDetail>
+                <TeacherDetail label="Phone">{currentTeacher.phone}</TeacherDetail>
+                <TeacherDetail label="Email">{currentTeacher.email}</TeacherDetail>
+                <TeacherDetail label="Emergency Phone">{currentTeacher.emergencyContact}</TeacherDetail>
+                <TeacherDetail label="Street Address" fullWidth>{currentTeacher.address?.street}</TeacherDetail>
+                <TeacherDetail label="City">{currentTeacher.address?.city}</TeacherDetail>
+                <TeacherDetail label="State">{currentTeacher.address?.state}</TeacherDetail>
+                <TeacherDetail label="ZIP / PIN Code">{currentTeacher.address?.zip}</TeacherDetail>
+              </TeacherSection>
 
-              {/* Personal & Family Information */}
-              <div className="p-4 border border-gray-200 dark:border-slate-800 rounded-xl space-y-3">
-                <p className="text-xs font-bold uppercase text-gray-500 dark:text-slate-400">Personal & Family Details</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Marital Status:</span>
-                    <span className="font-semibold text-gray-900 dark:text-white text-sm">{currentTeacher.maritalStatus}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Father's Name:</span>
-                    <span className="font-semibold text-gray-900 dark:text-white text-sm">{currentTeacher.fatherName || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Spouse's Name:</span>
-                    <span className="font-semibold text-gray-900 dark:text-white text-sm">{currentTeacher.spouseName || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Date of Birth:</span>
-                    <span className="font-medium text-gray-800 dark:text-slate-200">{currentTeacher.dob}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Joining Date:</span>
-                    <span className="font-medium text-gray-800 dark:text-slate-200">{currentTeacher.joiningDate}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-slate-400 block">Qualifications:</span>
-                    <span className="font-medium text-gray-800 dark:text-slate-200">{currentTeacher.qualification}</span>
-                  </div>
-                </div>
-              </div>
+              <TeacherSection title="Professional & Academic Details" icon={GraduationCap}>
+                <TeacherDetail label="Subject Specialization">{currentTeacher.subject}</TeacherDetail>
+                <TeacherDetail label="Qualifications">{currentTeacher.qualification}</TeacherDetail>
+                <TeacherDetail label="Joining Date">{currentTeacher.joiningDate}</TeacherDetail>
+                <TeacherDetail label="Total Experience">{currentTeacher.experienceYears} Years {currentTeacher.experienceMonths} Months</TeacherDetail>
+              </TeacherSection>
 
-              {/* Contact & Address */}
-              <div className="p-4 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-xl space-y-2 text-xs">
-                <p className="font-bold uppercase text-gray-500 dark:text-slate-400">Contact & Address</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <p><strong>Phone:</strong> {currentTeacher.phone}</p>
-                  <p><strong>Email:</strong> {currentTeacher.email}</p>
-                  <p><strong>Emergency Contact:</strong> {currentTeacher.emergencyContact}</p>
-                  <p><strong>Address:</strong> {currentTeacher.address.street}, {currentTeacher.address.city}, {currentTeacher.address.state} - {currentTeacher.address.zip}</p>
-                </div>
-              </div>
+              <TeacherSection title="Family & Background Details" icon={Users}>
+                <TeacherDetail label="Father's Name">{currentTeacher.fatherName}</TeacherDetail>
+                <TeacherDetail label="Spouse's Name">{currentTeacher.spouseName}</TeacherDetail>
+              </TeacherSection>
+
+              <TeacherSection title="Class Assignment" icon={Briefcase}>
+                <TeacherDetail label="Assigned Class">Class {currentTeacher.className}</TeacherDetail>
+                <TeacherDetail label="Assigned Section">Section {currentTeacher.section}</TeacherDetail>
+              </TeacherSection>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-5">
+            {/* Fixed Footer */}
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
               <button
                 onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700"
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700 transition"
               >
                 Close
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 };
 
 export default TeacherManagement;
+

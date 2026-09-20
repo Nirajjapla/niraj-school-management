@@ -1,6 +1,23 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, X, UserCog, Layers, Award } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  X,
+  UserCog,
+  Layers,
+  Award,
+  User,
+  Briefcase,
+  Phone,
+  Mail
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { indianStates } from '../services/centralData';
 
 interface Staff {
   id: string;
@@ -20,6 +37,35 @@ interface Staff {
   emergencyContact: string;
   bloodGroup: string;
 }
+
+const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+const FormSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+  <section className="space-y-3">
+    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
+      {title}
+    </h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</div>
+  </section>
+);
+
+const StaffSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+  <section className="space-y-3">
+    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
+      {title}
+    </h3>
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
+  </section>
+);
+
+const StaffDetail: React.FC<{ label: string; children: React.ReactNode; fullWidth?: boolean }> = ({ label, children, fullWidth }) => (
+  <div className={fullWidth ? 'sm:col-span-2' : undefined}>
+    <dt className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">{label}</dt>
+    <dd className="text-sm text-gray-900 dark:text-white break-words">{children || '—'}</dd>
+  </div>
+);
 
 const StaffManagement: React.FC = () => {
   const {
@@ -202,9 +248,9 @@ const StaffManagement: React.FC = () => {
     setShowDeptModal(true);
   };
 
-  const handleEditDept = (dept: any) => {
-    setCurrentDeptId(dept.id);
+  const handleEditDept = (dept: { id: string; name: string; description?: string }) => {
     setDeptForm({ name: dept.name, description: dept.description || '' });
+    setCurrentDeptId(dept.id);
     setShowDeptModal(true);
   };
 
@@ -219,7 +265,7 @@ const StaffManagement: React.FC = () => {
     if (currentDeptId) {
       updateDepartment(currentDeptId, deptForm);
     } else {
-      addDepartment({ ...deptForm, staffCount: 0 });
+      addDepartment(deptForm);
     }
     setShowDeptModal(false);
   };
@@ -231,9 +277,9 @@ const StaffManagement: React.FC = () => {
     setShowDesigModal(true);
   };
 
-  const handleEditDesig = (desig: any) => {
-    setCurrentDesigId(desig.id);
+  const handleEditDesig = (desig: { id: string; name: string; description?: string }) => {
     setDesigForm({ name: desig.name, description: desig.description || '' });
+    setCurrentDesigId(desig.id);
     setShowDesigModal(true);
   };
 
@@ -254,19 +300,22 @@ const StaffManagement: React.FC = () => {
   };
 
   return (
-    <div>
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+    <div className="space-y-6">
+      {/* Page Header & Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Staff & HR Management</h1>
-          <p className="text-gray-600 dark:text-slate-400">Manage non-teaching staff, departments, and designations</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff & HR Management</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
+            Manage non-teaching staff directory, departments, and employee designations
+          </p>
         </div>
-        <div className="flex space-x-1 mt-4 md:mt-0 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+        <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('staff')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
               activeTab === 'staff'
                 ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
             }`}
           >
             <UserCog className="w-4 h-4" />
@@ -274,10 +323,10 @@ const StaffManagement: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('departments')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
               activeTab === 'departments'
                 ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -285,10 +334,10 @@ const StaffManagement: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('designations')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
               activeTab === 'designations'
                 ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
             }`}
           >
             <Award className="w-4 h-4" />
@@ -298,134 +347,199 @@ const StaffManagement: React.FC = () => {
       </div>
 
       {activeTab === 'staff' && (
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
-          <div className="p-6 border-b border-gray-200 dark:border-slate-800 space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search by ID or Name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none"
-                />
+        <div className="space-y-6">
+          {/* Filters & Actions */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
+                  Search Staff
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search by ID or Name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none text-sm"
+                  />
+                </div>
               </div>
-              <button
-                onClick={handleAdd}
-                className="flex items-center space-x-2 bg-[#4e74f9] text-white px-4 py-2 rounded-lg hover:bg-[#3d5fd8] transition"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add Staff</span>
-              </button>
-            </div>
 
-            <div className="flex space-x-4">
-              <select
-                value={designationFilter}
-                onChange={(e) => setDesignationFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white"
-              >
-                <option value="">All Designations</option>
-                {designations.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
+                  Designation
+                </label>
+                <select
+                  value={designationFilter}
+                  onChange={(e) => setDesignationFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white text-sm"
+                >
+                  <option value="">All Designations</option>
+                  {designations.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <select
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white"
-              >
-                <option value="">All Departments</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
+                  Department
+                </label>
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white text-sm"
+                >
+                  <option value="">All Departments</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setDesignationFilter('');
+                    setDepartmentFilter('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium transition"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleAdd}
+                  className="flex-1 px-4 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Staff</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-slate-800/60">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Staff ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Designation</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">DOB</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
-                {filteredStaff.map((staffMember) => (
-                  <tr key={staffMember.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{staffMember.staffId}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{`${staffMember.firstName} ${staffMember.lastName}`}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{staffMember.designation}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{staffMember.department}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{staffMember.phone}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{staffMember.dob}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <button onClick={() => handleView(staffMember)} className="p-1 text-blue-600 hover:bg-blue-50 rounded">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleEdit(staffMember)} className="p-1 text-[#4e74f9] hover:bg-blue-50 rounded">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(staffMember.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+          {/* Staff Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Staff ID</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Designation</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Department</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Phone</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">DOB</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {filteredStaff.map((staffMember) => (
+                    <tr key={staffMember.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.staffId}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{`${staffMember.firstName} ${staffMember.lastName}`}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.designation}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.department}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.phone}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.dob}</td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleView(staffMember)}
+                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
+                            title="View Staff Profile"
+                            aria-label={`View details for ${staffMember.firstName} ${staffMember.lastName}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(staffMember)}
+                            className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
+                            title="Edit Staff Member"
+                            aria-label={`Edit ${staffMember.firstName} ${staffMember.lastName}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(staffMember.id)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
+                            title="Delete Staff Member"
+                            aria-label={`Delete ${staffMember.firstName} ${staffMember.lastName}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredStaff.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+                        No staff records match the search filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
       {activeTab === 'departments' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800">Departments</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Departments Directory</h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Manage administrative and functional divisions</p>
+            </div>
             <button
               onClick={handleAddDept}
-              className="flex items-center space-x-2 bg-[#4e74f9] text-white px-4 py-2 rounded-lg hover:bg-[#3d5fd8] transition"
+              className="px-4 py-2 bg-[#4e74f9] text-white rounded-xl text-sm font-medium hover:bg-[#3d5fd8] transition flex items-center gap-1.5 shadow-sm"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               <span>Add Department</span>
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Department ID</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
+                  <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {departments.map((dept) => (
-                  <tr key={dept.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{dept.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800 font-semibold">{dept.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{dept.description || '-'}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <button onClick={() => handleEditDept(dept)} className="p-1 text-[#4e74f9] hover:bg-blue-50 rounded">
+                  <tr key={dept.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{dept.id}</td>
+                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{dept.name}</td>
+                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{dept.description || '—'}</td>
+                    <td className="px-5 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleEditDept(dept)}
+                          className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
+                          title="Edit Department"
+                          aria-label={`Edit ${dept.name}`}
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDeleteDept(dept.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                        <button
+                          onClick={() => handleDeleteDept(dept.id)}
+                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
+                          title="Delete Department"
+                          aria-label={`Delete ${dept.name}`}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -434,8 +548,8 @@ const StaffManagement: React.FC = () => {
                 ))}
                 {departments.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="text-center py-6 text-gray-500">
-                      No departments found. Add one to get started!
+                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+                      No departments found. Add one to get started.
                     </td>
                   </tr>
                 )}
@@ -446,39 +560,52 @@ const StaffManagement: React.FC = () => {
       )}
 
       {activeTab === 'designations' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800">Designations</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Designations Directory</h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Manage job roles and positions across staff</p>
+            </div>
             <button
               onClick={handleAddDesig}
-              className="flex items-center space-x-2 bg-[#4e74f9] text-white px-4 py-2 rounded-lg hover:bg-[#3d5fd8] transition"
+              className="px-4 py-2 bg-[#4e74f9] text-white rounded-xl text-sm font-medium hover:bg-[#3d5fd8] transition flex items-center gap-1.5 shadow-sm"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               <span>Add Designation</span>
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Designation ID</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
+                  <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {designations.map((desig) => (
-                  <tr key={desig.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{desig.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800 font-semibold">{desig.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{desig.description || '-'}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <button onClick={() => handleEditDesig(desig)} className="p-1 text-[#4e74f9] hover:bg-blue-50 rounded">
+                  <tr key={desig.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{desig.id}</td>
+                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{desig.name}</td>
+                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{desig.description || '—'}</td>
+                    <td className="px-5 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleEditDesig(desig)}
+                          className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
+                          title="Edit Designation"
+                          aria-label={`Edit ${desig.name}`}
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDeleteDesig(desig.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                        <button
+                          onClick={() => handleDeleteDesig(desig.id)}
+                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
+                          title="Delete Designation"
+                          aria-label={`Delete ${desig.name}`}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -487,8 +614,8 @@ const StaffManagement: React.FC = () => {
                 ))}
                 {designations.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="text-center py-6 text-gray-500">
-                      No designations found. Add one to get started!
+                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+                      No designations found. Add one to get started.
                     </td>
                   </tr>
                 )}
@@ -499,321 +626,462 @@ const StaffManagement: React.FC = () => {
       )}
 
       {/* Staff Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Edit Staff' : 'Add New Staff'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
+      {showModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {isEditing ? 'Edit Staff Profile' : 'Add New Staff Member'}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  <span className="text-red-500 font-semibold">*</span> Indicates required field
+                </p>
+              </div>
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { label: 'First Name', name: 'firstName', type: 'text' },
-                { label: 'Last Name', name: 'lastName', type: 'text' },
-                { label: 'Email', name: 'email', type: 'email' },
-                { label: 'Phone', name: 'phone', type: 'tel' },
-              ].map((f) => (
-                <div key={f.name}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
-                  <input
-                    type={f.type}
-                    value={(formData as any)[f.name]}
-                    onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4e74f9] outline-none"
-                  />
-                </div>
-              ))}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
-                <select
-                  value={formData.designation}
-                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                >
-                  <option value="">Select Designation</option>
-                  {designations.map((d) => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                <select
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                >
-                  <option value="">Select Department</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                <input
-                  type="date"
-                  value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
-                <input
-                  type="date"
-                  value={formData.joiningDate}
-                  onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
-                <input
-                  type="text"
-                  value={formData.emergencyContact}
-                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
-                <input
-                  type="text"
-                  value={formData.bloodGroup}
-                  onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"
-                />
-              </div>
-
-              {/* Address Fields */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Address <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleSubmit} id="staff-form" className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+              {/* Section 1: Personal Details */}
+              <FormSection title="Personal Details" icon={User}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="Street"
+                    value={formData.firstName || ''}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.lastName || ''}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dob || ''}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Blood Group
+                  </label>
+                  <select
+                    value={formData.bloodGroup || 'B+'}
+                    onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  >
+                    {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Emergency Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.emergencyContact || ''}
+                    onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    House / Street Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="House/Apartment number, street name"
                     value={formData.houseAddress || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        houseAddress: e.target.value,
-                      })
-                    }
-                    className="border rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="City"
-                    value={formData.city || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        city: e.target.value,
-                      })
-                    }
-                    className="border rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="State"
-                    value={formData.state || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        state: e.target.value,
-                      })
-                    }
-                    className="border rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="ZIP"
-                    value={formData.pinCode || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        pinCode: e.target.value,
-                      })
-                    }
-                    className="border rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                    onChange={(e) => setFormData({ ...formData, houseAddress: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     required
                   />
                 </div>
-              </div>
-              <div className="col-span-2 flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#4e74f9] text-white rounded-lg hover:bg-[#3d5fd8] transition"
-                >
-                  {isEditing ? 'Update' : 'Add'} Staff
-                </button>
-              </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    City <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city || ''}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.state || 'Delhi'}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  >
+                    {indianStates.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    PIN Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pinCode || ''}
+                    onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+              </FormSection>
+
+              {/* Section 2: Role & Department */}
+              <FormSection title="Role & Department" icon={Briefcase}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Designation <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.designation || ''}
+                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  >
+                    <option value="">Select Designation</option>
+                    {designations.map((d) => (
+                      <option key={d.id} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Department <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.department || ''}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Joining Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.joiningDate || ''}
+                    onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+              </FormSection>
+
+              {/* Section 3: Contact Details */}
+              <FormSection title="Contact Information" icon={Phone}>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone || ''}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+              </FormSection>
             </form>
+
+            {/* Fixed Footer */}
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="staff-form"
+                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
+              >
+                {isEditing ? 'Save Changes' : 'Add Staff'}
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Staff View Modal */}
-      {showViewModal && currentStaff && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">Staff Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
+      {showViewModal && currentStaff && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {currentStaff.firstName} {currentStaff.lastName}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Staff ID: {currentStaff.staffId} • {currentStaff.designation} ({currentStaff.department})
+                </p>
+              </div>
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowViewModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 grid grid-cols-2 gap-4 text-sm text-gray-800">
-              <p><b>Staff ID:</b> {currentStaff.staffId}</p>
-              <p><b>Name:</b> {currentStaff.firstName} {currentStaff.lastName}</p>
-              <p><b>Email:</b> {currentStaff.email}</p>
-              <p><b>Phone:</b> {currentStaff.phone}</p>
-              <p><b>Designation:</b> {currentStaff.designation}</p>
-              <p><b>Department:</b> {currentStaff.department}</p>
-              <p><b>DOB:</b> {currentStaff.dob}</p>
-              <p><b>Joining Date:</b> {currentStaff.joiningDate}</p>
-              <p><b>Address:</b> {`${currentStaff.houseAddress}, ${currentStaff.city}, ${currentStaff.state} - ${currentStaff.pinCode}`}</p>
-              <p><b>Emergency Contact:</b> {currentStaff.emergencyContact}</p>
-              <p><b>Blood Group:</b> {currentStaff.bloodGroup}</p>
+
+            {/* Scrollable Body */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+              <StaffSection title="Personal Details" icon={User}>
+                <StaffDetail label="First Name">{currentStaff.firstName}</StaffDetail>
+                <StaffDetail label="Last Name">{currentStaff.lastName}</StaffDetail>
+                <StaffDetail label="Date of Birth">{currentStaff.dob}</StaffDetail>
+                <StaffDetail label="Blood Group">{currentStaff.bloodGroup}</StaffDetail>
+                <StaffDetail label="Emergency Contact">{currentStaff.emergencyContact}</StaffDetail>
+                <StaffDetail label="House / Street Address" fullWidth>{currentStaff.houseAddress}</StaffDetail>
+                <StaffDetail label="City">{currentStaff.city}</StaffDetail>
+                <StaffDetail label="State">{currentStaff.state}</StaffDetail>
+                <StaffDetail label="PIN Code">{currentStaff.pinCode}</StaffDetail>
+              </StaffSection>
+
+              <StaffSection title="Role & Department" icon={Briefcase}>
+                <StaffDetail label="Designation">{currentStaff.designation}</StaffDetail>
+                <StaffDetail label="Department">{currentStaff.department}</StaffDetail>
+                <StaffDetail label="Joining Date">{currentStaff.joiningDate}</StaffDetail>
+              </StaffSection>
+
+              <StaffSection title="Contact Information" icon={Phone}>
+                <StaffDetail label="Phone Number">{currentStaff.phone}</StaffDetail>
+                <StaffDetail label="Email Address">{currentStaff.email}</StaffDetail>
+              </StaffSection>
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700 transition"
+              >
+                Close
+              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Department Modal */}
-      {showDeptModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800">{currentDept ? 'Edit Department' : 'Add Department'}</h2>
-              <button onClick={() => setShowDeptModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
+      {showDeptModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {currentDeptId ? 'Edit Department' : 'Add Department'}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  <span className="text-red-500 font-semibold">*</span> Indicates required field
+                </p>
+              </div>
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowDeptModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleDeptSubmit} className="p-6 space-y-4">
+
+            <form onSubmit={handleDeptSubmit} id="dept-form" className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Department Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={deptForm.name}
                   onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
                   placeholder="e.g. Finance, Science Dept"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Description
+                </label>
                 <textarea
                   value={deptForm.description}
                   onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
-                  placeholder="Optional description"
+                  placeholder="Optional functional overview"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                 />
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowDeptModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#4e74f9] text-white rounded-lg hover:bg-[#3d5fd8] transition"
-                >
-                  Save
-                </button>
-              </div>
             </form>
+
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowDeptModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="dept-form"
+                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
+              >
+                Save Department
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Designation Modal */}
-      {showDesigModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800">{currentDesig ? 'Edit Designation' : 'Add Designation'}</h2>
-              <button onClick={() => setShowDesigModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
+      {showDesigModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {currentDesigId ? 'Edit Designation' : 'Add Designation'}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  <span className="text-red-500 font-semibold">*</span> Indicates required field
+                </p>
+              </div>
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowDesigModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleDesigSubmit} className="p-6 space-y-4">
+
+            <form onSubmit={handleDesigSubmit} id="desig-form" className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation Title</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Designation Title <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={desigForm.name}
                   onChange={(e) => setDesigForm({ ...desigForm, name: e.target.value })}
                   placeholder="e.g. Senior Lecturer, Registrar"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Description
+                </label>
                 <textarea
                   value={desigForm.description}
                   onChange={(e) => setDesigForm({ ...desigForm, description: e.target.value })}
-                  placeholder="Optional description"
+                  placeholder="Optional role description"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                 />
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowDesigModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#4e74f9] text-white rounded-lg hover:bg-[#3d5fd8] transition"
-                >
-                  Save
-                </button>
-              </div>
             </form>
+
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowDesigModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="desig-form"
+                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
+              >
+                Save Designation
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

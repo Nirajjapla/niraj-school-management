@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, Save, X, DollarSign, Layers, TrendingUp, Info, Copy, CheckSquare, Square } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, Save, X, DollarSign, Layers, TrendingUp, Info, Copy, CheckSquare, Square, Calendar } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { FeeStructure, FeeComponent, FeeComponentCode } from '../services/centralData';
 import { formatRupee } from '../styles/colors';
@@ -506,349 +507,385 @@ const FeeStructureManagement: React.FC = () => {
       </div>
 
       {/* Modal */}
-      {showModal && (
+      {showModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {editingStructure ? 'Edit' : 'Create'} Fee Structure
-              </h2>
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {editingStructure ? 'Edit' : 'Create'} Fee Structure
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Configure class-level tuition and fee components
+                </p>
+              </div>
               <button
                 onClick={handleCloseModal}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition"
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
               >
-                <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveStructure} className="p-6 space-y-6">
-              {/* Class & Category Selection */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Class
-                  </label>
-                  <select
-                    value={formData.className || ''}
-                    onChange={(e) => setFormData({ ...formData, className: e.target.value })}
-                    disabled={!!editingStructure}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60"
-                  >
-                    {allClasses.map((cls) => (
-                      <option key={cls} value={cls}>
-                        Class {cls}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <form onSubmit={handleSaveStructure} className="flex flex-col flex-1 min-h-0">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">
+                  Required fields are marked with an asterisk (<span className="text-red-500">*</span>)
+                </p>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={formData.category || ''}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as 'normal' | 'reservation' })}
-                    disabled={!!editingStructure}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60"
-                  >
-                    <option value="normal">Normal Student</option>
-                    <option value="reservation">Reservation / Concession</option>
-                  </select>
-                </div>
-              </div>
+                {/* Section 1: Class & Category */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Layers className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Class & Category Alignment</span>
+                  </div>
 
-              {/* Collection Settings */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Collection Frequency
-                  </label>
-                  <select
-                    value={formData.collectionFrequency || ''}
-                    onChange={(e) => setFormData({ ...formData, collectionFrequency: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Annually">Annually</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Due Day of Month
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={formData.dueDayOfMonth || ''}
-                    onChange={(e) => setFormData({ ...formData, dueDayOfMonth: parseInt(e.target.value) || 10 })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Grace Days
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.graceDays || ''}
-                    onChange={(e) => setFormData({ ...formData, graceDays: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Late Fee (Fixed)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.lateFeeFixedAmount || ''}
-                    onChange={(e) => setFormData({ ...formData, lateFeeFixedAmount: parseInt(e.target.value) || 250 })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Fee Components Section */}
-              <div className="border-t border-gray-200 dark:border-slate-800 pt-6">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-[#4e74f9]" />
-                  Fee Components
-                </h3>
-
-                {/* Add Component */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 mb-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">
-                        Component Type
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Class <span className="text-red-500">*</span>
                       </label>
                       <select
-                        value={newComponentCode}
-                        onChange={(e) => setNewComponentCode(e.target.value as FeeComponentCode)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+                        value={formData.className || ''}
+                        onChange={(e) => setFormData({ ...formData, className: e.target.value })}
+                        disabled={!!editingStructure}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9] disabled:opacity-60 text-sm"
                       >
-                        {Object.entries(feeComponentTemplates).map(([code, template]) => (
-                          <option key={code} value={code}>
-                            {template.name}
+                        {allClasses.map((cls) => (
+                          <option key={cls} value={cls}>
+                            Class {cls}
                           </option>
                         ))}
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">
-                        Amount (₹)
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Category <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.category || ''}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value as 'normal' | 'reservation' })}
+                        disabled={!!editingStructure}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9] disabled:opacity-60 text-sm"
+                      >
+                        <option value="normal">Normal Student</option>
+                        <option value="reservation">Reservation / Concession</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Collection Settings */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Collection & Late Fee Rules</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Collection Frequency <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.collectionFrequency || ''}
+                        onChange={(e) => setFormData({ ...formData, collectionFrequency: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      >
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Annually">Annually</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Due Day of Month <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
-                        placeholder={String(feeComponentTemplates[newComponentCode].default)}
-                        value={newComponentAmount}
-                        onChange={(e) => setNewComponentAmount(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+                        min="1"
+                        max="31"
+                        value={formData.dueDayOfMonth || ''}
+                        onChange={(e) => setFormData({ ...formData, dueDayOfMonth: parseInt(e.target.value) || 10 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">
-                        Frequency
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Grace Days (Days) <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        value={newComponentFrequency}
-                        onChange={(e) => setNewComponentFrequency(e.target.value as any)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="Monthly">Monthly</option>
-                        <option value="Quarterly">Quarterly</option>
-                        <option value="Half yearly">Half Yearly</option>
-                        <option value="Yearly">Yearly</option>
-                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.graceDays || ''}
+                        onChange={(e) => setFormData({ ...formData, graceDays: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
                     </div>
 
-                    <div className="flex items-end">
-                      <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white dark:hover:bg-slate-900 transition h-full">
-                        <input
-                          type="checkbox"
-                          checked={newComponentOptional}
-                          onChange={(e) => setNewComponentOptional(e.target.checked)}
-                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-xs font-medium text-gray-700 dark:text-slate-300 whitespace-nowrap">Optional</span>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Late Fee Fixed Amount (₹) <span className="text-red-500">*</span>
                       </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.lateFeeFixedAmount || ''}
+                        onChange={(e) => setFormData({ ...formData, lateFeeFixedAmount: parseInt(e.target.value) || 250 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                        required
+                      />
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleAddComponent}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition flex items-center justify-center gap-2 h-full"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add
-                    </button>
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-slate-400">
-                    {feeComponentTemplates[newComponentCode].description}
-                  </p>
                 </div>
 
-                {/* Components List */}
-                <div className="space-y-2">
-                  {(formData.components || []).length === 0 ? (
-                    <div className="text-center py-6 text-gray-500 dark:text-slate-400">
-                      <p className="text-sm">No components added yet. Add components to complete the fee structure.</p>
-                    </div>
-                  ) : (
-                    (formData.components || []).map((comp) => (
-                      <div key={comp.id} className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-200 dark:border-slate-700 flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900 dark:text-white">{comp.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400">
-                            {formatRupee(comp.amount)} • {comp.frequency} •{' '}
-                            {comp.isOptional ? 'Optional' : 'Mandatory'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveComponent(comp.id)}
-                          className="p-2 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition text-red-600 dark:text-red-400"
+                {/* Section 3: Fee Components Section */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Plus className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Fee Components Breakdown</span>
+                  </div>
+
+                  {/* Add Component Form */}
+                  <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 items-end mb-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-400 mb-1">
+                          Component Type
+                        </label>
+                        <select
+                          value={newComponentCode}
+                          onChange={(e) => setNewComponentCode(e.target.value as FeeComponentCode)}
+                          className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-[#4e74f9]"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          {Object.entries(feeComponentTemplates).map(([code, template]) => (
+                            <option key={code} value={code}>
+                              {template.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    ))
-                  )}
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-400 mb-1">
+                          Amount (₹)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder={String(feeComponentTemplates[newComponentCode].default)}
+                          value={newComponentAmount}
+                          onChange={(e) => setNewComponentAmount(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-[#4e74f9]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-400 mb-1">
+                          Frequency
+                        </label>
+                        <select
+                          value={newComponentFrequency}
+                          onChange={(e) => setNewComponentFrequency(e.target.value as any)}
+                          className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-[#4e74f9]"
+                        >
+                          <option value="Monthly">Monthly</option>
+                          <option value="Quarterly">Quarterly</option>
+                          <option value="Half yearly">Half Yearly</option>
+                          <option value="Yearly">Yearly</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700 dark:text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={newComponentOptional}
+                            onChange={(e) => setNewComponentOptional(e.target.checked)}
+                            className="rounded text-[#4e74f9]"
+                          />
+                          <span>Optional</span>
+                        </label>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleAddComponent}
+                        className="px-3 py-1.5 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-lg font-medium text-xs transition flex items-center justify-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">
+                      {feeComponentTemplates[newComponentCode].description}
+                    </p>
+                  </div>
+
+                  {/* Components List */}
+                  <div className="space-y-2">
+                    {(formData.components || []).length === 0 ? (
+                      <div className="text-center py-4 text-gray-500 dark:text-slate-400">
+                        <p className="text-xs">No components added yet. Add components to complete the fee structure.</p>
+                      </div>
+                    ) : (
+                      (formData.components || []).map((comp) => (
+                        <div key={comp.id} className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-gray-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900 dark:text-white">{comp.name}</p>
+                            <p className="text-gray-500 dark:text-slate-400 mt-0.5">
+                              {formatRupee(comp.amount)} • {comp.frequency} •{' '}
+                              <span className={comp.isOptional ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                                {comp.isOptional ? 'Optional' : 'Mandatory'}
+                              </span>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveComponent(comp.id)}
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition text-red-600 dark:text-red-400"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
+              <div className="p-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl font-medium transition flex items-center justify-center gap-2"
+                  className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-sm flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
-                  {editingStructure ? 'Update' : 'Create'} Structure
+                  {editingStructure ? 'Update Structure' : 'Create Structure'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Bulk Clone Structure Modal */}
-      {showCloneModal && (
+      {showCloneModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400">
                   <Copy className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white">Bulk Clone Fee Structure</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Replicate fee components and settings to multiple classes</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Replicate fee components and settings to multiple classes</p>
                 </div>
               </div>
-              <button onClick={() => setShowCloneModal(false)} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 hover:text-gray-600">
+              <button
+                onClick={() => setShowCloneModal(false)}
+                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 hover:text-gray-600 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleExecuteBulkClone} className="space-y-4 pt-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">
-                  Source Class (Copy From)
-                </label>
-                <select
-                  value={cloneSourceClass}
-                  onChange={(e) => setCloneSourceClass(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                >
-                  {allClasses.map(cls => (
-                    <option key={cls} value={cls}>Class {cls}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">
-                  Category Scope
-                </label>
-                <select
-                  value={cloneCategoryScope}
-                  onChange={(e) => setCloneCategoryScope(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="both">Both Normal & Reservation / Concession</option>
-                  <option value="normal">Normal Students Only</option>
-                  <option value="reservation">Reservation Students Only</option>
-                </select>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-gray-700 dark:text-slate-300">
-                    Target Destination Classes ({cloneTargetClasses.length} selected)
+            <form onSubmit={handleExecuteBulkClone} className="flex flex-col flex-1 min-h-0">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Source Class (Copy From)
                   </label>
-                  <button
-                    type="button"
-                    onClick={handleSelectAllTargets}
-                    className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline"
+                  <select
+                    value={cloneSourceClass}
+                    onChange={(e) => setCloneSourceClass(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9]"
                   >
-                    {cloneTargetClasses.length === allClasses.filter(c => c !== cloneSourceClass).length ? 'Deselect All' : 'Select All'}
-                  </button>
+                    {allClasses.map(cls => (
+                      <option key={cls} value={cls}>Class {cls}</option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-800/50">
-                  {allClasses
-                    .filter(c => c !== cloneSourceClass)
-                    .map(cls => {
-                      const isChecked = cloneTargetClasses.includes(cls);
-                      return (
-                        <button
-                          type="button"
-                          key={cls}
-                          onClick={() => handleToggleCloneTargetClass(cls)}
-                          className={`px-3 py-2 rounded-lg border text-xs font-bold flex items-center gap-2 transition ${
-                            isChecked
-                              ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-300'
-                          }`}
-                        >
-                          <span className="truncate">Class {cls}</span>
-                        </button>
-                      );
-                    })}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Category Scope
+                  </label>
+                  <select
+                    value={cloneCategoryScope}
+                    onChange={(e) => setCloneCategoryScope(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4e74f9]"
+                  >
+                    <option value="both">Both Normal & Reservation / Concession</option>
+                    <option value="normal">Normal Students Only</option>
+                    <option value="reservation">Reservation Students Only</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+                      Target Destination Classes ({cloneTargetClasses.length} selected)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSelectAllTargets}
+                      className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+                    >
+                      {cloneTargetClasses.length === allClasses.filter(c => c !== cloneSourceClass).length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-800/50">
+                    {allClasses
+                      .filter(c => c !== cloneSourceClass)
+                      .map(cls => {
+                        const isChecked = cloneTargetClasses.includes(cls);
+                        return (
+                          <button
+                            type="button"
+                            key={cls}
+                            onClick={() => handleToggleCloneTargetClass(cls)}
+                            className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center justify-center transition ${
+                              isChecked
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                                : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-300'
+                            }`}
+                          >
+                            <span className="truncate">Class {cls}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-slate-800">
+              <div className="p-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCloneModal(false)}
-                  className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-gray-200 dark:hover:bg-slate-700 transition"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={cloneTargetClasses.length === 0}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition shadow-sm flex items-center gap-1.5"
                 >
                   <Copy className="w-4 h-4" />
                   Clone & Apply Structure
@@ -856,7 +893,8 @@ const FeeStructureManagement: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

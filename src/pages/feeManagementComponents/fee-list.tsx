@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   Eye,
@@ -394,15 +395,15 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee, onShowStructureManagemen
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
               <tr>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Student Name</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Class & Section</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Category</th>
-                <th className="px-5 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300">Total Amount</th>
-                <th className="px-5 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300">Paid Amount</th>
-                <th className="px-5 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300">Outstanding</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Due Date</th>
-                <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Status</th>
-                <th className="px-5 py-3.5 text-center font-semibold text-gray-600 dark:text-slate-300">Actions</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Student Name</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Class & Section</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Category</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Due Date</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Total Amount</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Paid Amount</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Outstanding</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -410,16 +411,16 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee, onShowStructureManagemen
                 const outstanding = Math.max(0, fee.totalAmount - fee.paidAmount);
                 return (
                   <tr key={fee.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
                       <div>
-                        <span className="font-semibold text-gray-900 dark:text-white block">{fee.studentName}</span>
+                        <span className="text-gray-900 dark:text-white block">{fee.studentName}</span>
                         <span className="text-xs text-gray-500 dark:text-slate-400">Type: Composite Fee</span>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-gray-700 dark:text-slate-300 font-medium">
+                    <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
                       Class {fee.class}-{fee.section}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
                       <span
                         className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full ${
                           fee.category === 'reservation'
@@ -430,22 +431,22 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee, onShowStructureManagemen
                         {fee.category === 'reservation' ? 'Reservation' : 'Normal'}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right font-bold text-gray-900 dark:text-white">
-                      {formatRupee(fee.totalAmount)}
-                      {fee.overrideAmount && (
-                        <span className="block text-[10px] text-purple-600 dark:text-purple-400 font-normal">Overridden</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                      {formatRupee(fee.paidAmount)}
-                    </td>
-                    <td className="px-5 py-4 text-right font-bold text-amber-600 dark:text-amber-400">
-                      {formatRupee(outstanding)}
-                    </td>
-                    <td className="px-5 py-4 text-gray-600 dark:text-slate-400 text-xs">
+                    <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300 text-xs">
                       {fee.dueDate}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-right text-sm font-normal text-gray-700 dark:text-slate-300">
+                      {formatRupee(fee.totalAmount)}
+                      {fee.overrideAmount && (
+                        <span className="block text-[10px] text-purple-600 dark:text-purple-400">Overridden</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm font-normal text-gray-700 dark:text-slate-300">
+                      {formatRupee(fee.paidAmount)}
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm font-normal text-gray-700 dark:text-slate-300">
+                      {formatRupee(outstanding)}
+                    </td>
+                    <td className="px-5 py-4 text-sm font-normal text-gray-700 dark:text-slate-300">
                       <span
                         className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full ${
                           fee.status === 'paid'
@@ -524,237 +525,250 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee, onShowStructureManagemen
       </div>
 
       {/* Fee Structure Configuration Modal */}
-      {showStructureModal && (
+      {showStructureModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Fee Structure Configuration
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Set Base Composite Fee, Student Categories (Normal vs Reservation), Fixed Late Fee, and Optional Components
+                  Set Base Composite Fee, Student Categories, Fixed Late Fee, and Optional Components
                 </p>
               </div>
               <button
                 onClick={() => setShowStructureModal(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveStructure} className="p-6 space-y-5">
-              {/* Optional Explanation Banner */}
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-start gap-3 text-xs text-blue-800 dark:text-blue-300">
-                <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold">What is 'Optional' in Fee Component?</span>
-                  <p className="mt-0.5 text-blue-700 dark:text-blue-300/90">
-                    Optional components (such as Transportation, Cafeteria/Meals, Practical Labs, or Sports Daycare) can be toggled per student according to their actual enrollment, while the Composite Fee represents the mandatory base tuition.
-                  </p>
-                </div>
-              </div>
+            <form onSubmit={handleSaveStructure} className="flex flex-col flex-1 min-h-0">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">
+                  Required fields are marked with an asterisk (<span className="text-red-500">*</span>)
+                </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Class (Pre-Primary to 12) *
-                  </label>
-                  <select
-                    value={structureFormData.className}
-                    onChange={(e) => setStructureFormData({ ...structureFormData, className: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                  >
-                    <optgroup label="Pre-Primary">
-                      {prePrimaryClasses.map(cls => <option key={cls} value={cls}>{cls}</option>)}
-                    </optgroup>
-                    <optgroup label="Primary & Secondary">
-                      {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(cls => (
-                        <option key={cls} value={cls}>Class {cls}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Student Category *
-                  </label>
-                  <select
-                    value={structureFormData.category}
-                    onChange={(e) => setStructureFormData({ ...structureFormData, category: e.target.value as any })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                  >
-                    <option value="normal">Normal Student</option>
-                    <option value="reservation">Reservation / Concession Student</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Collection Cycle *
-                  </label>
-                  <select
-                    value={structureFormData.collectionFrequency}
-                    onChange={(e) => setStructureFormData({ ...structureFormData, collectionFrequency: e.target.value as any })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                  >
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Annually">Annually</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Composite Fee (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    value={structureFormData.compositeFee}
-                    onChange={(e) => setStructureFormData({ ...structureFormData, compositeFee: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm font-bold"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Fixed Late Fee (₹ Fixed Amount) *
-                  </label>
-                  <input
-                    type="number"
-                    value={structureFormData.lateFeeFixedAmount}
-                    onChange={(e) => setStructureFormData({ ...structureFormData, lateFeeFixedAmount: parseFloat(e.target.value) || 0 })}
-                    placeholder="e.g. 500"
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                    required
-                  />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400">Fixed penalty per late period (not %)</span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Monthly Due Day
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="28"
-                    value={structureFormData.dueDayOfMonth}
-                    onChange={(e) => setStructureFormData({ ...structureFormData, dueDayOfMonth: parseInt(e.target.value) || 10 })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Component breakdown */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center justify-between">
-                  <span>Fee Components & Optional Add-ons</span>
-                  <span className="text-xs font-normal text-gray-500">Frequency: Monthly | Quarterly | Half yearly | Yearly</span>
-                </h4>
-
-                {/* Add new component form */}
-                <div className="bg-gray-50 dark:bg-slate-800/60 p-3.5 rounded-xl mb-3 grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end">
-                  <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Component Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Transport, Computer Lab"
-                      value={newComponentName}
-                      onChange={(e) => setNewComponentName(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white text-xs"
-                    />
-                  </div>
-
+                {/* Optional Explanation Banner */}
+                <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-start gap-3 text-xs text-blue-800 dark:text-blue-300">
+                  <HelpCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Amount (₹)</label>
-                    <input
-                      type="number"
-                      placeholder="Amount"
-                      value={newComponentAmount}
-                      onChange={(e) => setNewComponentAmount(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white text-xs font-semibold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Frequency</label>
-                    <select
-                      value={newComponentFrequency}
-                      onChange={(e) => setNewComponentFrequency(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white text-xs"
-                    >
-                      <option value="Monthly">Monthly</option>
-                      <option value="Quarterly">Quarterly</option>
-                      <option value="Half yearly">Half yearly</option>
-                      <option value="Yearly">Yearly</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-slate-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newComponentOptional}
-                        onChange={(e) => setNewComponentOptional(e.target.checked)}
-                        className="rounded text-[#4e74f9]"
-                      />
-                      <span>Optional</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleAddStructureComponent}
-                      className="px-3 py-1.5 bg-[#4e74f9] text-white rounded-lg text-xs font-medium hover:bg-[#3d5fd8] transition flex items-center gap-1 shrink-0 ml-auto"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add
-                    </button>
+                    <span className="font-bold">What is 'Optional' in Fee Component?</span>
+                    <p className="mt-0.5 text-blue-700 dark:text-blue-300/90">
+                      Optional components (such as Transportation, Cafeteria/Meals, Practical Labs, or Sports Daycare) can be toggled per student according to their actual enrollment, while the Composite Fee represents the mandatory base tuition.
+                    </p>
                   </div>
                 </div>
 
-                {/* List of components */}
-                <div className="space-y-2">
-                  {(structureFormData.components || []).map((comp) => (
-                    <div
-                      key={comp.id}
-                      className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs"
-                    >
-                      <div>
-                        <span className="font-semibold text-gray-900 dark:text-white">{comp.name}</span>
-                        <span className="text-gray-500 dark:text-slate-400 ml-2">({comp.frequency})</span>
-                        <span
-                          className={`ml-2 px-2 py-0.5 rounded text-[10px] font-semibold ${
-                            comp.isOptional
-                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                              : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                          }`}
-                        >
-                          {comp.isOptional ? 'Optional' : 'Mandatory'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-gray-900 dark:text-white">{formatRupee(comp.amount)}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveStructureComponent(comp.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                {/* Section 1: Base Configuration */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Layers className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Base Configuration</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Class (Pre-Primary to 12) <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={structureFormData.className}
+                        onChange={(e) => setStructureFormData({ ...structureFormData, className: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      >
+                        <optgroup label="Pre-Primary">
+                          {prePrimaryClasses.map(cls => <option key={cls} value={cls}>{cls}</option>)}
+                        </optgroup>
+                        <optgroup label="Primary & Secondary">
+                          {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(cls => (
+                            <option key={cls} value={cls}>Class {cls}</option>
+                          ))}
+                        </optgroup>
+                      </select>
                     </div>
-                  ))}
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Student Category <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={structureFormData.category}
+                        onChange={(e) => setStructureFormData({ ...structureFormData, category: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      >
+                        <option value="normal">Normal Student</option>
+                        <option value="reservation">Reservation / Concession Student</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Collection Cycle <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={structureFormData.collectionFrequency}
+                        onChange={(e) => setStructureFormData({ ...structureFormData, collectionFrequency: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      >
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Annually">Annually</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Composite Fee (₹) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={structureFormData.compositeFee}
+                        onChange={(e) => setStructureFormData({ ...structureFormData, compositeFee: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Fixed Late Fee (₹ Fixed Amount) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={structureFormData.lateFeeFixedAmount}
+                        onChange={(e) => setStructureFormData({ ...structureFormData, lateFeeFixedAmount: parseFloat(e.target.value) || 0 })}
+                        placeholder="e.g. 500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                        Monthly Due Day
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="28"
+                        value={structureFormData.dueDayOfMonth}
+                        onChange={(e) => setStructureFormData({ ...structureFormData, dueDayOfMonth: parseInt(e.target.value) || 10 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Fee Components & Add-ons */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Plus className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Fee Components & Optional Add-ons</span>
+                  </div>
+
+                  {/* Add new component form */}
+                  <div className="bg-gray-50 dark:bg-slate-800/60 p-3.5 rounded-xl grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Component Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Transport, Computer Lab"
+                        value={newComponentName}
+                        onChange={(e) => setNewComponentName(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Amount (₹)</label>
+                      <input
+                        type="number"
+                        placeholder="Amount"
+                        value={newComponentAmount}
+                        onChange={(e) => setNewComponentAmount(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Frequency</label>
+                      <select
+                        value={newComponentFrequency}
+                        onChange={(e) => setNewComponentFrequency(e.target.value as any)}
+                        className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white text-xs"
+                      >
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Half yearly">Half yearly</option>
+                        <option value="Yearly">Yearly</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newComponentOptional}
+                          onChange={(e) => setNewComponentOptional(e.target.checked)}
+                          className="rounded text-[#4e74f9]"
+                        />
+                        <span>Optional</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddStructureComponent}
+                        className="px-3 py-1.5 bg-[#4e74f9] text-white rounded-lg text-xs font-medium hover:bg-[#3d5fd8] transition flex items-center gap-1 shrink-0 ml-auto"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* List of components */}
+                  <div className="space-y-2">
+                    {(structureFormData.components || []).map((comp) => (
+                      <div
+                        key={comp.id}
+                        className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs"
+                      >
+                        <div>
+                          <span className="font-semibold text-gray-900 dark:text-white">{comp.name}</span>
+                          <span className="text-gray-500 dark:text-slate-400 ml-2">({comp.frequency})</span>
+                          <span
+                            className={`ml-2 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              comp.isOptional
+                                ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                                : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                            }`}
+                          >
+                            {comp.isOptional ? 'Optional' : 'Mandatory'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-gray-900 dark:text-white">{formatRupee(comp.amount)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveStructureComponent(comp.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+              <div className="p-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowStructureModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
@@ -767,67 +781,92 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee, onShowStructureManagemen
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Student Fee Override Modal */}
-      {showOverrideModal && selectedStudentForOverride && (
+      {showOverrideModal && selectedStudentForOverride && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-              Custom Student Fee Override
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-              Override fee for {selectedStudentForOverride.studentName} (Class {selectedStudentForOverride.class}-{selectedStudentForOverride.section})
-            </p>
-
-            <form onSubmit={handleSaveOverride} className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div>
-                <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                  Custom Total Fee (₹) *
-                </label>
-                <input
-                  type="number"
-                  value={overrideAmount}
-                  onChange={(e) => setOverrideAmount(e.target.value)}
-                  min="0"
-                  className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"
-                  required
-                />
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Custom Student Fee Override
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Override fee for {selectedStudentForOverride.studentName} (Class {selectedStudentForOverride.class}-{selectedStudentForOverride.section})
+                </p>
+              </div>
+              <button
+                onClick={() => setShowOverrideModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOverride} className="flex flex-col flex-1 min-h-0">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  Required fields are marked with an asterisk (<span className="text-red-500">*</span>)
+                </p>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800 pb-2">
+                    <Sparkles className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Override Details</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                      Custom Total Fee (₹) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={overrideAmount}
+                      onChange={(e) => setOverrideAmount(e.target.value)}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                      Reason / Concession Justification <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={overrideRemarks}
+                      onChange={(e) => setOverrideRemarks(e.target.value)}
+                      placeholder="e.g. Sibling concession 10%, Principal scholarship, Special financial aid"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-[#4e74f9] text-sm"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                  Reason / Concession Justification *
-                </label>
-                <textarea
-                  value={overrideRemarks}
-                  onChange={(e) => setOverrideRemarks(e.target.value)}
-                  placeholder="e.g. Sibling concession 10%, Principal scholarship, Special financial aid"
-                  rows={3}
-                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="p-4 border-t border-gray-100 dark:border-slate-800 flex justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowOverrideModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-medium transition shadow-sm"
+                  className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-sm"
                 >
                   Save Override
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Payment Modal */}
@@ -848,29 +887,38 @@ const FeeList: React.FC<FeeListProps> = ({ onSelectFee, onShowStructureManagemen
       )}
 
       {/* Reminder Modal */}
-      {showReminderModal && (
+      {showReminderModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Send Payment Reminders</h2>
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800 mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Send Payment Reminders</h2>
+              <button
+                onClick={() => setShowReminderModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">
               Are you sure you want to send automated payment reminders (SMS & in-app alerts) to all students with outstanding balances?
             </p>
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowReminderModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium transition"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSendReminders}
-                className="flex-1 px-4 py-2.5 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition"
+                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition"
               >
                 Send Reminders
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

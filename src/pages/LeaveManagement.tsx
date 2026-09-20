@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   CheckCircle,
@@ -13,8 +14,12 @@ import {
   ChevronDown,
   UserCheck,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  User,
+  Clock,
+  FileText
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { LeaveRequest } from '../services/centralData';
 
@@ -24,6 +29,33 @@ interface RoleLeaveQuota {
   earned: number;
   maternity: number;
 }
+
+const FormSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+  <section className="space-y-3">
+    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
+      {title}
+    </h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</div>
+  </section>
+);
+
+const LeaveSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
+  <section className="space-y-3">
+    <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
+      {title}
+    </h3>
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
+  </section>
+);
+
+const LeaveDetail: React.FC<{ label: string; children: React.ReactNode; fullWidth?: boolean }> = ({ label, children, fullWidth }) => (
+  <div className={fullWidth ? 'sm:col-span-2' : undefined}>
+    <dt className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">{label}</dt>
+    <dd className="text-sm text-gray-900 dark:text-white break-words">{children || '—'}</dd>
+  </div>
+);
 
 const LeaveManagement: React.FC = () => {
   const { leaves, employees, applyLeave, approveLeave, rejectLeave } = useData();
@@ -125,7 +157,7 @@ const LeaveManagement: React.FC = () => {
   const handleApplyLeaveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const emp = employees.find(e => e.id === leaveFormData.employeeId) || employees[0];
-    if (!emp || !leaveFormData.reason) {
+    if (!emp || !leaveFormData.reason.trim()) {
       alert('Please fill all mandatory fields (Employee, Reason)');
       return;
     }
@@ -140,7 +172,7 @@ const LeaveManagement: React.FC = () => {
       startDate: leaveFormData.startDate,
       endDate: leaveFormData.endDate,
       daysCount: Math.max(1, leaveFormData.daysCount),
-      reason: leaveFormData.reason
+      reason: leaveFormData.reason.trim()
     });
 
     setShowApplyModal(false);
@@ -188,7 +220,7 @@ const LeaveManagement: React.FC = () => {
             className="px-4 py-2.5 border border-purple-300 dark:border-purple-800/60 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded-xl text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900/40 transition flex items-center gap-2 shadow-sm"
           >
             <Sliders className="w-4 h-4" />
-            Leave Quota Settings
+            <span>Leave Quota Settings</span>
           </button>
 
           <button
@@ -200,7 +232,7 @@ const LeaveManagement: React.FC = () => {
             className="px-4 py-2.5 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-md shadow-blue-500/20"
           >
             <Plus className="w-4 h-4" />
-            Apply Leave for Employee
+            <span>Apply Leave for Employee</span>
           </button>
         </div>
       </div>
@@ -362,73 +394,69 @@ const LeaveManagement: React.FC = () => {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Employee</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Staff Type & Role</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Leave Type</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Pay Status</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Dates & Duration</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Reason</th>
-                    <th className="px-5 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300">Status</th>
-                    <th className="px-5 py-3.5 text-center font-semibold text-gray-600 dark:text-slate-300">Actions</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Employee</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Staff Type & Role</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Leave Type</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Pay Status</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Dates & Duration</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Reason</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {filteredLeaves.map((leave) => (
                     <tr key={leave.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                      <td className="px-5 py-4 font-semibold text-gray-900 dark:text-white">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                         {leave.employeeName}
                       </td>
-                      <td className="px-5 py-4">
-                        <span className="text-gray-800 dark:text-slate-200 block text-xs font-medium">
-                          {leave.designation || 'Staff'}
-                        </span>
-                        <span className="text-[11px] text-gray-500 dark:text-slate-400 capitalize">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                        <span>{leave.designation || 'Staff'}</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-400 block capitalize">
                           {leave.employeeRole === 'teacher' ? 'Teaching Staff' : leave.employeeRole === 'admin' ? 'Admin Staff' : 'Support Staff'}
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 font-medium text-gray-900 dark:text-white">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                         {leave.leaveType}
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                         <span
-                          className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                          className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${
                             leave.isPaid
-                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                              : 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
                           }`}
                         >
                           {leave.isPaid ? 'Paid Leave' : 'Unpaid Leave'}
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-xs">
-                        <span className="text-gray-800 dark:text-slate-200 block font-medium">
-                          {leave.startDate} to {leave.endDate}
-                        </span>
-                        <span className="text-gray-500 dark:text-slate-400">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                        <span>{leave.startDate} to {leave.endDate}</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-400 block">
                           {leave.daysCount} day{leave.daysCount > 1 ? 's' : ''}
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-xs text-gray-600 dark:text-slate-300 max-w-xs">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal max-w-xs">
                         <p className="line-clamp-2">{leave.reason}</p>
                         {leave.rejectionReason && (
-                          <p className="text-rose-600 dark:text-rose-400 text-[11px] mt-1 font-medium">
-                            Rejection Reason: {leave.rejectionReason}
+                          <p className="text-rose-600 dark:text-rose-400 text-xs mt-1">
+                            Rejection: {leave.rejectionReason}
                           </p>
                         )}
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                         <span
-                          className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                          className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${
                             leave.status === 'approved'
-                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
                               : leave.status === 'rejected'
-                              ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
-                              : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                              ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+                              : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
                           }`}
                         >
                           {leave.status.toUpperCase()}
@@ -439,8 +467,9 @@ const LeaveManagement: React.FC = () => {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => handleOpenView(leave)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/60 rounded-lg transition"
+                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
                             title="View Details"
+                            aria-label={`View leave details for ${leave.employeeName}`}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -449,16 +478,18 @@ const LeaveManagement: React.FC = () => {
                             <>
                               <button
                                 onClick={() => approveLeave(leave.id)}
-                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-lg transition"
+                                className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-lg transition"
                                 title="Approve Leave"
+                                aria-label={`Approve leave for ${leave.employeeName}`}
                               >
                                 <CheckCircle className="w-4 h-4" />
                               </button>
 
                               <button
                                 onClick={() => handleOpenReject(leave)}
-                                className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-lg transition"
+                                className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 rounded-lg transition"
                                 title="Reject with Reason"
+                                aria-label={`Reject leave for ${leave.employeeName}`}
                               >
                                 <XCircle className="w-4 h-4" />
                               </button>
@@ -468,6 +499,13 @@ const LeaveManagement: React.FC = () => {
                       </td>
                     </tr>
                   ))}
+                  {filteredLeaves.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+                        No leave records found matching your filters.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -479,29 +517,28 @@ const LeaveManagement: React.FC = () => {
       {activeTab === 'balances' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Staff type cards */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5">
               <h3 className="font-bold text-base text-gray-900 dark:text-white mb-2 flex items-center justify-between">
                 <span>Teaching Staff Quota</span>
-                <span className="text-xs font-normal text-blue-600 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded">
+                <span className="text-xs font-normal text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded">
                   Annual Allotment
                 </span>
               </h3>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Casual Leaves (CL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Casual Leaves (CL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.teacher.casual} Days</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Sick / Medical Leaves (SL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Sick / Medical Leaves (SL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.teacher.sick} Days</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Earned / Annual Leaves (EL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Earned / Annual Leaves (EL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.teacher.earned} Days</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-gray-500">Maternity Leaves:</span>
+                  <span className="text-gray-500 dark:text-slate-400">Maternity Leaves:</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.teacher.maternity} Days</span>
                 </div>
               </div>
@@ -510,25 +547,25 @@ const LeaveManagement: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5">
               <h3 className="font-bold text-base text-gray-900 dark:text-white mb-2 flex items-center justify-between">
                 <span>Admin / Non-Teaching Quota</span>
-                <span className="text-xs font-normal text-purple-600 bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded">
+                <span className="text-xs font-normal text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded">
                   Annual Allotment
                 </span>
               </h3>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Casual Leaves (CL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Casual Leaves (CL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.admin.casual} Days</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Sick / Medical Leaves (SL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Sick / Medical Leaves (SL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.admin.sick} Days</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Earned / Annual Leaves (EL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Earned / Annual Leaves (EL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.admin.earned} Days</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-gray-500">Maternity Leaves:</span>
+                  <span className="text-gray-500 dark:text-slate-400">Maternity Leaves:</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.admin.maternity} Days</span>
                 </div>
               </div>
@@ -537,25 +574,25 @@ const LeaveManagement: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5">
               <h3 className="font-bold text-base text-gray-900 dark:text-white mb-2 flex items-center justify-between">
                 <span>Support & Fleet Staff Quota</span>
-                <span className="text-xs font-normal text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded">
+                <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded">
                   Annual Allotment
                 </span>
               </h3>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Casual Leaves (CL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Casual Leaves (CL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.support.casual} Days</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Sick / Medical Leaves (SL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Sick / Medical Leaves (SL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.support.sick} Days</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-gray-50 dark:border-slate-800">
-                  <span className="text-gray-500">Earned / Annual Leaves (EL):</span>
+                  <span className="text-gray-500 dark:text-slate-400">Earned / Annual Leaves (EL):</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.support.earned} Days</span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-gray-500">Maternity Leaves:</span>
+                  <span className="text-gray-500 dark:text-slate-400">Maternity Leaves:</span>
                   <span className="font-bold text-gray-900 dark:text-white">{quotas.support.maternity} Days</span>
                 </div>
               </div>
@@ -564,8 +601,11 @@ const LeaveManagement: React.FC = () => {
 
           {/* Employee Quota Breakdown Table */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-            <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-bold text-base text-gray-900 dark:text-white">Employee Leave Balances</h3>
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-base text-gray-900 dark:text-white">Employee Leave Balances</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Live remaining leave calculations per employee profile</p>
+              </div>
               <button
                 onClick={() => setShowQuotaModal(true)}
                 className="text-xs text-[#4e74f9] hover:underline font-semibold"
@@ -575,14 +615,14 @@ const LeaveManagement: React.FC = () => {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-slate-300 uppercase">
+                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-5 py-3 text-left">Employee Name</th>
-                    <th className="px-5 py-3 text-left">Department & Role</th>
-                    <th className="px-5 py-3 text-center">Casual (Remaining/Total)</th>
-                    <th className="px-5 py-3 text-center">Sick (Remaining/Total)</th>
-                    <th className="px-5 py-3 text-center">Earned (Remaining/Total)</th>
-                    <th className="px-5 py-3 text-center">Total Balance Left</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Employee Name</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Department & Role</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Casual (Left/Total)</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Sick (Left/Total)</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Earned (Left/Total)</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Total Balance Left</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -601,30 +641,26 @@ const LeaveManagement: React.FC = () => {
                     const elRemain = Math.max(0, elTotal - elTaken);
 
                     const totalRemain = clRemain + slRemain + elRemain;
+
                     return (
-                      <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
-                        <td className="px-5 py-3.5 font-semibold text-gray-900 dark:text-white">
-                          {emp.name} ({emp.code || emp.id})
+                      <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                        <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                          {emp.name}
                         </td>
-                        <td className="px-5 py-3.5 text-xs text-gray-600 dark:text-slate-300">
-                          {emp.designation || 'Faculty'} - <span className="capitalize">{emp.department || 'Academic'}</span>
+                        <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                          {emp.department || 'Academics'} ({emp.role})
                         </td>
-                        <td className="px-5 py-3.5 text-center font-medium">
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{clRemain}</span>
-                          <span className="text-gray-400"> / {clTotal}</span>
+                        <td className="px-5 py-4 text-center text-sm text-gray-700 dark:text-slate-300 font-normal">
+                          {clRemain} / {clTotal}
                         </td>
-                        <td className="px-5 py-3.5 text-center font-medium">
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{slRemain}</span>
-                          <span className="text-gray-400"> / {slTotal}</span>
+                        <td className="px-5 py-4 text-center text-sm text-gray-700 dark:text-slate-300 font-normal">
+                          {slRemain} / {slTotal}
                         </td>
-                        <td className="px-5 py-3.5 text-center font-medium">
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{elRemain}</span>
-                          <span className="text-gray-400"> / {elTotal}</span>
+                        <td className="px-5 py-4 text-center text-sm text-gray-700 dark:text-slate-300 font-normal">
+                          {elRemain} / {elTotal}
                         </td>
-                        <td className="px-5 py-3.5 text-center">
-                          <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded-full font-bold text-xs">
-                            {totalRemain} Days Available
-                          </span>
+                        <td className="px-5 py-4 text-center text-sm text-gray-700 dark:text-slate-300 font-normal">
+                          {totalRemain} Days
                         </td>
                       </tr>
                     );
@@ -636,66 +672,74 @@ const LeaveManagement: React.FC = () => {
         </div>
       )}
 
-      {/* 3. History & Analytics Tab */}
+      {/* 3. Leave Audit History Tab */}
       {activeTab === 'history' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
-              <p className="text-xs font-semibold uppercase text-gray-500">Total Leave Applications</p>
+              <p className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">Total Applications</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{totalApplied}</p>
             </div>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
-              <p className="text-xs font-semibold uppercase text-emerald-600">Approved Leaves</p>
-              <p className="text-2xl font-bold text-emerald-600 mt-1">{totalApproved}</p>
+              <p className="text-xs font-semibold uppercase text-emerald-600 dark:text-emerald-400">Approved Leaves</p>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{totalApproved}</p>
             </div>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
-              <p className="text-xs font-semibold uppercase text-blue-600">Paid Leaves Recorded</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{totalPaidLeaves}</p>
+              <p className="text-xs font-semibold uppercase text-blue-600 dark:text-blue-400">Paid Leaves Recorded</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">{totalPaidLeaves}</p>
             </div>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
-              <p className="text-xs font-semibold uppercase text-purple-600">Unpaid / LOP Leaves</p>
-              <p className="text-2xl font-bold text-purple-600 mt-1">{totalUnpaidLeaves}</p>
+              <p className="text-xs font-semibold uppercase text-purple-600 dark:text-purple-400">Unpaid / LOP Leaves</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">{totalUnpaidLeaves}</p>
             </div>
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-            <div className="p-4 border-b border-gray-100 dark:border-slate-800">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800">
               <h3 className="font-bold text-base text-gray-900 dark:text-white">Complete Past Leave Audit History</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Historical log of approved, rejected, and completed leaves</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs text-gray-600 dark:text-slate-300 uppercase">
+                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-5 py-3 text-left">Employee Name</th>
-                    <th className="px-5 py-3 text-left">Leave Type</th>
-                    <th className="px-5 py-3 text-left">Type</th>
-                    <th className="px-5 py-3 text-left">Duration</th>
-                    <th className="px-5 py-3 text-left">Reason / Remarks</th>
-                    <th className="px-5 py-3 text-left">Decision</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Employee Name</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Leave Type</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Duration</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Reason / Remarks</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Decision</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {pastLeaves.map(leave => (
-                    <tr key={leave.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
-                      <td className="px-5 py-3.5 font-semibold text-gray-900 dark:text-white">{leave.employeeName}</td>
-                      <td className="px-5 py-3.5">{leave.leaveType}</td>
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${leave.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                    <tr key={leave.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{leave.employeeName}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{leave.leaveType}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${leave.isPaid ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' : 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'}`}>
                           {leave.isPaid ? 'Paid' : 'Unpaid'}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-xs text-gray-700 dark:text-slate-300">{leave.startDate} to {leave.endDate} ({leave.daysCount}d)</td>
-                      <td className="px-5 py-3.5 text-xs text-gray-600 dark:text-slate-400 max-w-xs">
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{leave.startDate} to {leave.endDate} ({leave.daysCount}d)</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal max-w-xs">
                         <p>{leave.reason}</p>
-                        {leave.rejectionReason && <p className="text-rose-600 text-[11px] mt-0.5">Rejected: {leave.rejectionReason}</p>}
+                        {leave.rejectionReason && <p className="text-rose-600 dark:text-rose-400 text-xs mt-0.5">Rejected: {leave.rejectionReason}</p>}
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                        <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${leave.status === 'approved' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'}`}>
                           {leave.status.toUpperCase()}
                         </span>
                       </td>
                     </tr>
                   ))}
+                  {pastLeaves.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+                        No past leave records found.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -704,202 +748,210 @@ const LeaveManagement: React.FC = () => {
       )}
 
       {/* Leave Quotas Configuration Modal */}
-      {showQuotaModal && (
+      {showQuotaModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-950 text-purple-600 rounded-xl">
+                <div className="p-2 bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 rounded-xl">
                   <Sliders className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Configure Annual Leave Quotas</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Set annual allowances per leave type across staff categories</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure Annual Leave Quotas</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Set annual allowances per leave type across staff categories</p>
                 </div>
               </div>
-              <button onClick={() => setShowQuotaModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowQuotaModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {quotaSuccessMsg && (
-              <div className="p-3 mb-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 text-emerald-800 dark:text-emerald-200 rounded-xl flex items-center gap-2 text-xs font-medium">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>{quotaSuccessMsg}</span>
-              </div>
-            )}
+            {/* Scrollable Body */}
+            <form onSubmit={handleSaveQuotas} id="quota-form" className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4">
+              {quotaSuccessMsg && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl flex items-center gap-2 text-xs font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>{quotaSuccessMsg}</span>
+                </div>
+              )}
 
-            <form onSubmit={handleSaveQuotas} className="space-y-4">
               {/* Teaching Staff Quota Form */}
-              <div className="p-4 bg-blue-50/50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/40">
-                <h4 className="text-xs font-bold uppercase text-blue-900 dark:text-blue-300 mb-3">
-                  Teaching Faculty Quota (Annual)
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-gray-200 dark:border-slate-700/60">
+                <h4 className="text-xs font-bold uppercase text-gray-700 dark:text-slate-300 mb-3">
+                  Teaching Faculty Quota (Annual Days)
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Casual (CL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Casual (CL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.teacher.casual}
                       onChange={(e) => setQuotas({ ...quotas, teacher: { ...quotas.teacher, casual: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Sick (SL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Sick (SL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.teacher.sick}
                       onChange={(e) => setQuotas({ ...quotas, teacher: { ...quotas.teacher, sick: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Earned (EL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Earned (EL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.teacher.earned}
                       onChange={(e) => setQuotas({ ...quotas, teacher: { ...quotas.teacher, earned: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Maternity (ML)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Maternity (ML)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.teacher.maternity}
                       onChange={(e) => setQuotas({ ...quotas, teacher: { ...quotas.teacher, maternity: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Admin Staff Quota Form */}
-              <div className="p-4 bg-purple-50/50 dark:bg-purple-950/30 rounded-xl border border-purple-100 dark:border-purple-900/40">
-                <h4 className="text-xs font-bold uppercase text-purple-900 dark:text-purple-300 mb-3">
-                  Admin & Office Staff Quota (Annual)
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-gray-200 dark:border-slate-700/60">
+                <h4 className="text-xs font-bold uppercase text-gray-700 dark:text-slate-300 mb-3">
+                  Admin & Office Staff Quota (Annual Days)
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Casual (CL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Casual (CL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.admin.casual}
                       onChange={(e) => setQuotas({ ...quotas, admin: { ...quotas.admin, casual: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Sick (SL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Sick (SL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.admin.sick}
                       onChange={(e) => setQuotas({ ...quotas, admin: { ...quotas.admin, sick: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Earned (EL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Earned (EL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.admin.earned}
                       onChange={(e) => setQuotas({ ...quotas, admin: { ...quotas.admin, earned: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Maternity (ML)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Maternity (ML)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.admin.maternity}
                       onChange={(e) => setQuotas({ ...quotas, admin: { ...quotas.admin, maternity: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Support Staff Quota Form */}
-              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
-                <h4 className="text-xs font-bold uppercase text-emerald-900 dark:text-emerald-300 mb-3">
-                  Support, Security & Fleet Staff Quota (Annual)
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-gray-200 dark:border-slate-700/60">
+                <h4 className="text-xs font-bold uppercase text-gray-700 dark:text-slate-300 mb-3">
+                  Support, Security & Fleet Staff Quota (Annual Days)
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Casual (CL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Casual (CL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.support.casual}
                       onChange={(e) => setQuotas({ ...quotas, support: { ...quotas.support, casual: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Sick (SL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Sick (SL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.support.sick}
                       onChange={(e) => setQuotas({ ...quotas, support: { ...quotas.support, sick: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Earned (EL)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Earned (EL)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.support.earned}
                       onChange={(e) => setQuotas({ ...quotas, support: { ...quotas.support, earned: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-600 dark:text-slate-300 mb-1">Maternity (ML)</label>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Maternity (ML)</label>
                     <input
                       type="number"
                       min={0}
                       value={quotas.support.maternity}
                       onChange={(e) => setQuotas({ ...quotas, support: { ...quotas.support, maternity: Number(e.target.value) } })}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs dark:bg-slate-800 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     />
                   </div>
                 </div>
               </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowQuotaModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold hover:bg-gray-50 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-sm"
-                >
-                  <Save className="w-4 h-4" />
-                  Save School Quotas
-                </button>
-              </div>
             </form>
+
+            {/* Fixed Footer */}
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowQuotaModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="quota-form"
+                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
+              >
+                Save Quotas
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Rejection Reason Popup Modal */}
-      {showRejectModal && selectedLeave && (
+      {showRejectModal && selectedLeave && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
@@ -911,15 +963,15 @@ const LeaveManagement: React.FC = () => {
 
             <form onSubmit={handleConfirmReject} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                  Rejection Reason / Remarks *
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Rejection Reason / Remarks <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="e.g. Incomplete syllabus schedule, staff shortage during examination, quota already exceeded."
                   rows={4}
-                  className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500 text-sm"
                   required
                 />
               </div>
@@ -928,7 +980,7 @@ const LeaveManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowRejectModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
@@ -941,182 +993,189 @@ const LeaveManagement: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* View Details Modal */}
-      {showViewModal && selectedLeave && (
+      {showViewModal && selectedLeave && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedLeave.employeeName}</h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400">{selectedLeave.designation || 'Staff'} ({selectedLeave.employeeRole})</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  {selectedLeave.designation || 'Staff'} ({selectedLeave.employeeRole})
+                </p>
               </div>
-              <span
-                className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  selectedLeave.status === 'approved'
-                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                    : selectedLeave.status === 'rejected'
-                    ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
-                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                }`}
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowViewModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
               >
-                {selectedLeave.status.toUpperCase()}
-              </span>
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <div className="space-y-3.5 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl">
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Leave Category</span>
-                  <span className="font-bold text-gray-900 dark:text-white">{selectedLeave.leaveType}</span>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl">
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">Pay Classification</span>
-                  <span className={`font-bold ${selectedLeave.isPaid ? 'text-emerald-600' : 'text-purple-600'}`}>
-                    {selectedLeave.isPaid ? 'Paid Leave' : 'Unpaid (LOP)'}
+            {/* Scrollable Body */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+              <LeaveSection title="Employee & Category" icon={User}>
+                <LeaveDetail label="Employee Name">{selectedLeave.employeeName}</LeaveDetail>
+                <LeaveDetail label="Role & Designation">{selectedLeave.designation || 'Staff'} ({selectedLeave.employeeRole})</LeaveDetail>
+                <LeaveDetail label="Leave Type">{selectedLeave.leaveType}</LeaveDetail>
+                <LeaveDetail label="Pay Classification">
+                  <span className={`font-semibold ${selectedLeave.isPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-purple-600 dark:text-purple-400'}`}>
+                    {selectedLeave.isPaid ? 'Paid Leave' : 'Unpaid (Loss of Pay)'}
                   </span>
-                </div>
-              </div>
+                </LeaveDetail>
+              </LeaveSection>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">From Date</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">{selectedLeave.startDate}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 block">To Date</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">{selectedLeave.endDate}</span>
-                </div>
-              </div>
+              <LeaveSection title="Dates & Duration" icon={Clock}>
+                <LeaveDetail label="Start Date">{selectedLeave.startDate}</LeaveDetail>
+                <LeaveDetail label="End Date">{selectedLeave.endDate}</LeaveDetail>
+                <LeaveDetail label="Total Duration">{selectedLeave.daysCount} Day{selectedLeave.daysCount > 1 ? 's' : ''}</LeaveDetail>
+                <LeaveDetail label="Application Status">
+                  <span className="font-semibold capitalize text-gray-900 dark:text-white">
+                    {selectedLeave.status}
+                  </span>
+                </LeaveDetail>
+              </LeaveSection>
 
-              <div className="p-3 bg-gray-50 dark:bg-slate-800/60 rounded-xl">
-                <span className="text-xs text-gray-500 dark:text-slate-400 block font-medium">Application Reason</span>
-                <p className="text-gray-800 dark:text-slate-200 text-xs mt-1">{selectedLeave.reason}</p>
-              </div>
-
-              {selectedLeave.rejectionReason && (
-                <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 rounded-xl text-xs text-rose-800 dark:text-rose-300">
-                  <span className="font-bold block mb-0.5">Admin Rejection Remarks:</span>
-                  {selectedLeave.rejectionReason}
-                </div>
-              )}
+              <LeaveSection title="Reason & Documentation" icon={FileText}>
+                <LeaveDetail label="Application Reason" fullWidth>{selectedLeave.reason}</LeaveDetail>
+                {selectedLeave.rejectionReason && (
+                  <div className="sm:col-span-2 p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 rounded-xl text-xs text-rose-800 dark:text-rose-300">
+                    <span className="font-bold block mb-0.5">Admin Rejection Remarks:</span>
+                    {selectedLeave.rejectionReason}
+                  </div>
+                )}
+              </LeaveSection>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800 mt-4">
+            {/* Fixed Footer */}
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
               <button
                 onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700"
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700 transition"
               >
                 Close
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Apply Leave with Searchable Popover Dropdown Modal */}
-      {showApplyModal && (
+      {/* Apply Leave Modal */}
+      {showApplyModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="p-1 border-b border-gray-100 dark:border-slate-800 pb-3 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Apply Leave on Behalf of Staff</h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Search employee and submit request</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  <span className="text-red-500 font-semibold">*</span> Indicates required field
+                </p>
               </div>
-              <button onClick={() => setShowApplyModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">
+              <button
+                aria-label="Close dialog"
+                onClick={() => setShowApplyModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleApplyLeaveSubmit} className="space-y-4 pt-4">
-              {/* Searchable Employee Selector Popover */}
-              <div className="relative">
-                <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                  Select Employee (Searchable Dropdown) *
-                </label>
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleApplyLeaveSubmit} id="apply-leave-form" className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+              {/* Section 1: Employee & Category */}
+              <FormSection title="Employee & Category" icon={User}>
+                <div className="sm:col-span-2 relative">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Select Employee <span className="text-red-500">*</span>
+                  </label>
 
-                {/* Selected Employee Display Box / Trigger */}
-                <div
-                  onClick={() => setIsEmpDropdownOpen(!isEmpDropdownOpen)}
-                  className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-between cursor-pointer hover:border-[#4e74f9] transition"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <UserCheck className="w-4 h-4 text-[#4e74f9] shrink-0" />
-                    <span className="font-semibold text-sm text-gray-900 dark:text-white truncate">
-                      {selectedEmp?.name || 'Choose Employee'}
-                    </span>
-                    <span className="text-xs text-gray-400 dark:text-slate-400 truncate">
-                      ({selectedEmp?.code || ''} • {selectedEmp?.designation || ''})
-                    </span>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                </div>
-
-                {/* Popover Dropdown Menu */}
-                {isEmpDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl shadow-2xl z-30 p-2 max-h-60 overflow-hidden flex flex-col">
-                    <div className="relative mb-2">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search name, code, designation..."
-                        value={empSearch}
-                        onChange={(e) => setEmpSearch(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-[#4e74f9]"
-                        autoFocus
-                      />
+                  {/* Selected Employee Trigger */}
+                  <div
+                    onClick={() => setIsEmpDropdownOpen(!isEmpDropdownOpen)}
+                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-between cursor-pointer hover:border-[#4e74f9] transition"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <UserCheck className="w-4 h-4 text-[#4e74f9] shrink-0" />
+                      <span className="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                        {selectedEmp?.name || 'Choose Employee'}
+                      </span>
+                      <span className="text-xs text-gray-400 dark:text-slate-400 truncate">
+                        ({selectedEmp?.code || ''} • {selectedEmp?.designation || ''})
+                      </span>
                     </div>
+                    <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                  </div>
 
-                    <div className="overflow-y-auto max-h-44 divide-y divide-gray-50 dark:divide-slate-800">
-                      {filteredEmployeesForDropdown.map(emp => {
-                        const isSelected = emp.id === leaveFormData.employeeId;
-                        return (
-                          <div
-                            key={emp.id}
-                            onClick={() => {
-                              setLeaveFormData({ ...leaveFormData, employeeId: emp.id });
-                              setIsEmpDropdownOpen(false);
-                            }}
-                            className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between text-xs ${
-                              isSelected
-                                ? 'bg-blue-50 dark:bg-blue-950/60 text-[#4e74f9] font-bold'
-                                : 'hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-800 dark:text-slate-200'
-                            }`}
-                          >
-                            <div>
-                              <span className="font-semibold block">{emp.name}</span>
-                              <span className="text-[11px] text-gray-400 dark:text-slate-400">
-                                {emp.code} • {emp.designation} ({emp.role})
+                  {/* Popover Dropdown Menu */}
+                  {isEmpDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl shadow-2xl z-30 p-2 max-h-60 overflow-hidden flex flex-col">
+                      <div className="relative mb-2">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search name, code, designation..."
+                          value={empSearch}
+                          onChange={(e) => setEmpSearch(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 dark:border-slate-700 rounded-lg dark:bg-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-[#4e74f9]"
+                          autoFocus
+                        />
+                      </div>
+
+                      <div className="overflow-y-auto max-h-44 divide-y divide-gray-50 dark:divide-slate-800">
+                        {filteredEmployeesForDropdown.map(emp => {
+                          const isSelected = emp.id === leaveFormData.employeeId;
+                          return (
+                            <div
+                              key={emp.id}
+                              onClick={() => {
+                                setLeaveFormData({ ...leaveFormData, employeeId: emp.id });
+                                setIsEmpDropdownOpen(false);
+                              }}
+                              className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between text-xs ${
+                                isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-950/60 text-[#4e74f9] font-bold'
+                                  : 'hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-800 dark:text-slate-200'
+                              }`}
+                            >
+                              <div>
+                                <span className="font-semibold block">{emp.name}</span>
+                                <span className="text-[11px] text-gray-400 dark:text-slate-400">
+                                  {emp.code} • {emp.designation} ({emp.role})
+                                </span>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 bg-gray-100 dark:bg-slate-800 rounded text-gray-600 dark:text-slate-300">
+                                CL: {emp.leaveBalance?.casual?.total ?? 12}d
                               </span>
                             </div>
-                            <span className="text-[10px] px-2 py-0.5 bg-gray-100 dark:bg-slate-800 rounded text-gray-600 dark:text-slate-300">
-                              CL: {emp.leaveBalance?.casual?.total ?? 12}d
-                            </span>
+                          );
+                        })}
+
+                        {filteredEmployeesForDropdown.length === 0 && (
+                          <div className="p-3 text-center text-xs text-gray-400">
+                            No matching staff found
                           </div>
-                        );
-                      })}
-
-                      {filteredEmployeesForDropdown.length === 0 && (
-                        <div className="p-3 text-center text-xs text-gray-400">
-                          No matching staff found
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Leave Type *
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Leave Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={leaveFormData.leaveType}
                     onChange={(e) => setLeaveFormData({ ...leaveFormData, leaveType: e.target.value as any })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                   >
                     <option value="Casual Leave">Casual Leave (CL)</option>
                     <option value="Sick Leave">Sick Leave (SL)</option>
@@ -1126,94 +1185,101 @@ const LeaveManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Pay Classification
                   </label>
                   <select
                     value={leaveFormData.isPaid ? 'true' : 'false'}
                     onChange={(e) => setLeaveFormData({ ...leaveFormData, isPaid: e.target.value === 'true' })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                   >
                     <option value="true">Paid Leave</option>
                     <option value="false">Unpaid Leave (Loss of Pay)</option>
                   </select>
                 </div>
-              </div>
+              </FormSection>
 
-              <div className="grid grid-cols-3 gap-3">
+              {/* Section 2: Dates & Duration */}
+              <FormSection title="Dates & Duration" icon={Calendar}>
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Start Date *
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Start Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={leaveFormData.startDate}
                     onChange={(e) => setLeaveFormData({ ...leaveFormData, startDate: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    End Date *
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    End Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={leaveFormData.endDate}
                     onChange={(e) => setLeaveFormData({ ...leaveFormData, endDate: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                    Days Count *
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Days Count <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
                     min="1"
                     value={leaveFormData.daysCount}
                     onChange={(e) => setLeaveFormData({ ...leaveFormData, daysCount: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     required
                   />
                 </div>
-              </div>
+              </FormSection>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase text-gray-600 dark:text-slate-300 mb-1">
-                  Reason for Leave *
-                </label>
-                <textarea
-                  value={leaveFormData.reason}
-                  onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
-                  placeholder="State the reason for leave..."
-                  rows={3}
-                  className="w-full px-3.5 py-2 border border-gray-300 dark:border-slate-700 rounded-xl dark:bg-slate-800 dark:text-white outline-none text-sm"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowApplyModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-sm"
-                >
-                  Submit Application
-                </button>
-              </div>
+              {/* Section 3: Reason & Documentation */}
+              <FormSection title="Reason & Documentation" icon={Layers}>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Reason for Leave <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={leaveFormData.reason}
+                    onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
+                    placeholder="State the reason for leave..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    required
+                  />
+                </div>
+              </FormSection>
             </form>
+
+            {/* Fixed Footer */}
+            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowApplyModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="apply-leave-form"
+                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
+              >
+                Submit Application
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
