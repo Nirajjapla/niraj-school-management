@@ -34,7 +34,7 @@ const StudentSection: React.FC<{ title: string; icon: LucideIcon; children: Reac
       <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500 dark:text-slate-400" />
       {title}
     </h3>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</div>
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
   </section>
 );
 
@@ -48,8 +48,6 @@ const StudentDetail: React.FC<{ label: string; children: React.ReactNode; fullWi
 const StudentManagement: React.FC = () => {
   const { students, transportRoutes, addStudent, updateStudent, deleteStudent } = useData();
 
-  const currentTransportRoute = transportRoutes.find(route => route.id === currentStudent?.busRouteId);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
@@ -60,6 +58,8 @@ const StudentManagement: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  const currentTransportRoute = transportRoutes?.find(route => route.id === currentStudent?.busRouteId);
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [toDeleteId, setToDeleteId] = useState<string | null>(null);
