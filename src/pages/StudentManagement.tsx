@@ -7,7 +7,6 @@ import {
   Trash2,
   Eye,
   X,
-  ShieldCheck,
   Upload,
   Download,
   FileSpreadsheet,
@@ -15,18 +14,15 @@ import {
   Users,
   User,
   GraduationCap,
-  MapPin,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { importStudents, type CreateStudentInput } from '../services/studentRepository';
 import { Student, indianStates } from '../services/centralData';
 
-const prePrimaryClasses = ['Nursery', 'LKG', 'UKG'];
-const primaryAndSecClasses = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const sectionOptions = ['A', 'B', 'C', 'D'];
 
 const FormSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
   <section className="space-y-3">
@@ -56,7 +52,21 @@ const StudentDetail: React.FC<{ label: string; children: React.ReactNode; fullWi
 );
 
 const StudentManagement: React.FC = () => {
-  const { students, transportRoutes, addStudent, updateStudent, deleteStudent } = useData();
+  const { students, classes, studentsLoading, studentsError, reloadStudents, transportRoutes, addStudent, updateStudent, deleteStudent } = useData();
+  const prePrimaryClasses = classes.filter(item => item.stage === 'Pre-Primary').map(item => item.name);
+  const primaryAndSecClasses = classes.filter(item => item.stage !== 'Pre-Primary').map(item => item.name);
+  const [pending, setPending] = useState(false);
+  const requestActive = useRef(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const startRequest = () => {
+    if (requestActive.current) return false;
+    requestActive.current = true;
+    setPending(true);
+    setMutationError(null);
+    return true;
+  };
+  const finishRequest = () => { requestActive.current = false; setPending(false); };
+  const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Unable to complete the request. Please retry.';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClass, setFilterClass] = useState<string>('');
@@ -109,6 +119,8 @@ const StudentManagement: React.FC = () => {
     isAvailingTransport: false
   });
 
+  const sectionOptions = classes.find(item => item.name === formData.class)?.sections.map(item => item.name) || [];
+
   const filteredStudents = students.filter(student => {
     const matchesSearch = [
       student.firstName,
@@ -131,6 +143,7 @@ const StudentManagement: React.FC = () => {
   });
 
   const handleAdd = () => {
+    setMutationError(null);
     setIsEditing(false);
     setFormData({
       firstName: '',
@@ -163,6 +176,7 @@ const StudentManagement: React.FC = () => {
   };
 
   const handleEdit = (student: Student) => {
+    setMutationError(null);
     setIsEditing(true);
     setCurrentStudent(student);
     setFormData({
@@ -182,18 +196,22 @@ const StudentManagement: React.FC = () => {
   };
 
   const confirmDelete = (id: string) => {
+    setMutationError(null);
     setToDeleteId(id);
     setShowConfirm(true);
   };
 
-  const handleDelete = () => {
-    if (!toDeleteId) return;
-    deleteStudent(toDeleteId);
-    setShowConfirm(false);
-    setToDeleteId(null);
+  const handleDelete = async () => {
+    if (!toDeleteId || !startRequest()) return;
+    try {
+      await deleteStudent(toDeleteId);
+      setShowConfirm(false);
+      setToDeleteId(null);
+    } catch (error) { setMutationError(errorMessage(error)); }
+    finally { finishRequest(); }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.firstName || !formData.lastName || !formData.class) {
@@ -201,50 +219,54 @@ const StudentManagement: React.FC = () => {
       return;
     }
 
-    const parentName = formData.parentName || formData.fatherName || formData.motherName || 'Parent';
-    const parentPhone = formData.parentPhone || formData.fatherPhone || formData.motherPhone || '9876543210';
-    const parentEmail = formData.parentEmail || `${formData.firstName?.toLowerCase()}@example.com`;
+    if (!startRequest()) return;
+    try {
+      const parentName = formData.parentName || formData.fatherName || formData.motherName || 'Parent';
+      const parentPhone = formData.parentPhone || formData.fatherPhone || formData.motherPhone || '';
+      const parentEmail = formData.parentEmail || '';
 
-    if (isEditing && currentStudent) {
-      updateStudent(currentStudent.id, {
-        ...formData,
-        parentName,
-        parentPhone,
-        parentEmail
-      });
-    } else {
-      addStudent({
-        studentId: formData.studentId || `STU2026${String(students.length + 1).padStart(3, '0')}`,
-        firstName: formData.firstName!,
-        lastName: formData.lastName!,
-        dateOfBirth: formData.dateOfBirth || '2018-01-01',
-        gender: formData.gender || 'Male',
-        class: formData.class || 'Nursery',
-        section: formData.section || 'A',
-        category: formData.category || 'normal',
-        rollNumber: formData.rollNumber || '01',
-        admissionDate: formData.admissionDate || new Date().toISOString().split('T')[0],
-        parentName,
-        parentPhone,
-        parentEmail,
-        fatherName: formData.fatherName || parentName,
-        motherName: formData.motherName || '',
-        fatherPhone: formData.fatherPhone || parentPhone,
-        motherPhone: formData.motherPhone || '',
-        houseAddress: formData.houseAddress || '',
-        city: formData.city || 'New Delhi',
-        state: formData.state || 'Delhi',
-        pinCode: formData.pinCode || '110001',
-        emergencyContact: formData.emergencyContact || parentPhone,
-        bloodGroup: formData.bloodGroup || 'B+',
-        classTeacher: formData.classTeacher,
-        busRouteId: formData.busRouteId,
-        isAvailingTransport: formData.isAvailingTransport || false
-      });
-    }
+      if (isEditing && currentStudent) {
+        await updateStudent(currentStudent.id, {
+          ...formData,
+          parentName,
+          parentPhone,
+          parentEmail
+        });
+      } else {
+        await addStudent({
+          studentId: formData.studentId || undefined,
+          firstName: formData.firstName!,
+          lastName: formData.lastName!,
+          dateOfBirth: formData.dateOfBirth || '2018-01-01',
+          gender: formData.gender || 'Male',
+          class: formData.class || 'Nursery',
+          section: formData.section || 'A',
+          category: formData.category || 'normal',
+          rollNumber: formData.rollNumber || '01',
+          admissionDate: formData.admissionDate || new Date().toISOString().split('T')[0],
+          parentName,
+          parentPhone,
+          parentEmail,
+          fatherName: formData.fatherName || parentName,
+          motherName: formData.motherName || '',
+          fatherPhone: formData.fatherPhone || parentPhone,
+          motherPhone: formData.motherPhone || '',
+          houseAddress: formData.houseAddress || '',
+          city: formData.city || 'New Delhi',
+          state: formData.state || 'Delhi',
+          pinCode: formData.pinCode || '110001',
+          emergencyContact: formData.emergencyContact || parentPhone,
+          bloodGroup: formData.bloodGroup || 'B+',
+          classTeacher: formData.classTeacher,
+          busRouteId: formData.busRouteId,
+          isAvailingTransport: formData.isAvailingTransport || false
+        });
+      }
 
-    setShowModal(false);
-    setCurrentStudent(null);
+      setShowModal(false);
+      setCurrentStudent(null);
+    } catch (error) { setMutationError(errorMessage(error)); }
+    finally { finishRequest(); }
   };
 
   // CSV Template Generation
@@ -289,11 +311,11 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
       }
 
       const parentName = rowData.parentName || rowData.fatherName || rowData.motherName || 'Parent';
-      const parentPhone = rowData.parentPhone || rowData.fatherPhone || rowData.motherPhone || '+91 9876543210';
+      const parentPhone = rowData.parentPhone || rowData.fatherPhone || rowData.motherPhone || '';
       const isAvailingTransport = String(rowData.isAvailingTransport).toLowerCase() === 'true' || String(rowData.isAvailingTransport).toLowerCase() === 'yes';
 
       results.push({
-        studentId: rowData.studentId || `STU2026${String(students.length + results.length + 1).padStart(3, '0')}`,
+        studentId: rowData.studentId || undefined,
         firstName: rowData.firstName,
         lastName: rowData.lastName,
         dateOfBirth: rowData.dateOfBirth || '2017-01-01',
@@ -305,7 +327,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
         admissionDate: rowData.admissionDate || new Date().toISOString().split('T')[0],
         parentName,
         parentPhone,
-        parentEmail: rowData.parentEmail || `${rowData.firstName.toLowerCase()}@example.com`,
+        parentEmail: rowData.parentEmail || '',
         fatherName: rowData.fatherName || parentName,
         motherName: rowData.motherName || '',
         fatherPhone: rowData.fatherPhone || parentPhone,
@@ -338,53 +360,53 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
     reader.readAsText(file);
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (parsedCsvData.length === 0) {
       alert('No valid rows found to import.');
       return;
     }
 
-    parsedCsvData.forEach(student => {
-      addStudent({
-        studentId: student.studentId!,
-        firstName: student.firstName!,
-        lastName: student.lastName!,
-        dateOfBirth: student.dateOfBirth || '2017-01-01',
-        gender: student.gender || 'Male',
-        class: student.class || '1',
-        section: student.section || 'A',
-        category: student.category || 'normal',
-        rollNumber: student.rollNumber || '01',
-        admissionDate: student.admissionDate || new Date().toISOString().split('T')[0],
-        parentName: student.parentName || 'Parent',
-        parentPhone: student.parentPhone || '+91 9876543210',
-        parentEmail: student.parentEmail || 'parent@example.com',
-        fatherName: student.fatherName,
-        motherName: student.motherName,
-        fatherPhone: student.fatherPhone,
-        motherPhone: student.motherPhone,
-        houseAddress: student.houseAddress || '',
-        city: student.city || 'New Delhi',
-        state: student.state || 'Delhi',
-        pinCode: student.pinCode || '110001',
-        emergencyContact: student.emergencyContact || '+91 9876543210',
-        bloodGroup: student.bloodGroup || 'B+',
-        busRouteId: student.busRouteId,
-        isAvailingTransport: student.isAvailingTransport || false
-      });
-    });
-
-    setImportSuccessMsg(`Successfully imported ${parsedCsvData.length} students into the school registry.`);
-    setTimeout(() => {
-      setShowImportModal(false);
-      setParsedCsvData([]);
-      setCsvText('');
-      setImportSuccessMsg(null);
-    }, 1500);
+    if (!startRequest()) return;
+    try {
+      const inputs: CreateStudentInput[] = parsedCsvData.map(student => ({
+          studentId: student.studentId!,
+          firstName: student.firstName!,
+          lastName: student.lastName!,
+          dateOfBirth: student.dateOfBirth || '2017-01-01',
+          gender: student.gender || 'Male',
+          class: student.class || '1',
+          section: student.section || 'A',
+          category: student.category || 'normal',
+          rollNumber: student.rollNumber || '01',
+          admissionDate: student.admissionDate || new Date().toISOString().split('T')[0],
+          parentName: student.parentName || 'Parent',
+          parentPhone: student.parentPhone || '',
+          parentEmail: student.parentEmail || '',
+          fatherName: student.fatherName,
+          motherName: student.motherName,
+          fatherPhone: student.fatherPhone,
+          motherPhone: student.motherPhone,
+          houseAddress: student.houseAddress || '',
+          city: student.city || 'New Delhi',
+          state: student.state || 'Delhi',
+          pinCode: student.pinCode || '110001',
+          emergencyContact: student.emergencyContact || '',
+          bloodGroup: student.bloodGroup || 'B+',
+          busRouteId: student.busRouteId,
+          isAvailingTransport: student.isAvailingTransport || false
+      }));
+      const result = await importStudents(inputs, addStudent);
+      setParsedCsvData(result.failed.map(row => row.input));
+      setImportErrors(result.failed.map(row => `${row.input.firstName} ${row.input.lastName}: ${row.message}`));
+      setImportSuccessMsg(`${result.imported.length} students imported. ${result.failed.length} failed. Only failed rows remain for retry.`);
+      if (result.failed.length === 0) setCsvText('');
+    } finally { finishRequest(); }
   };
 
   return (
     <div className="space-y-6">
+      {studentsLoading && <p role="status">Loading students…</p>}
+      {studentsError && <div role="alert" className="text-red-600">{studentsError} <button onClick={() => void reloadStudents()} disabled={studentsLoading}>Retry</button></div>}
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -399,6 +421,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
             onClick={() => {
               setCsvText('');
               setParsedCsvData([]);
+              if (studentsLoading || studentsError) return;
               setImportErrors([]);
               setImportSuccessMsg(null);
               setShowImportModal(true);
@@ -410,6 +433,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
           </button>
 
           <button
+            disabled={studentsLoading || !!studentsError}
             onClick={handleAdd}
             className="px-4 py-2.5 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-md shadow-blue-500/20"
           >
@@ -573,6 +597,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
               </div>
               <button
                 aria-label="Close import dialog"
+                disabled={pending}
                 onClick={() => setShowImportModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
               >
@@ -615,12 +640,14 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
                   <input
                     ref={fileInputRef}
                     type="file"
+                    disabled={pending}
                     accept=".csv"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
                   <button
                     type="button"
+                    disabled={pending}
                     onClick={() => fileInputRef.current?.click()}
                     className="px-4 py-2.5 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-semibold transition flex items-center gap-2"
                   >
@@ -631,6 +658,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
                 </div>
 
                 <textarea
+                  disabled={pending}
                   rows={5}
                   value={csvText}
                   onChange={(e) => {
@@ -704,6 +732,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
             <div className="shrink-0 flex items-center justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
+                disabled={pending}
                 onClick={() => setShowImportModal(false)}
                 className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
               >
@@ -712,11 +741,11 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
               <button
                 type="button"
                 onClick={handleConfirmImport}
-                disabled={parsedCsvData.length === 0}
+                disabled={pending || parsedCsvData.length === 0}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition shadow-sm flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                Import {parsedCsvData.length > 0 ? `${parsedCsvData.length} Students` : ''}
+                {pending ? 'Importing…' : `Import ${parsedCsvData.length || ''} Students`}
               </button>
             </div>
           </div>
@@ -740,6 +769,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
               </div>
               <button
                 aria-label="Close dialog"
+                disabled={pending}
                 onClick={() => setShowModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
               >
@@ -748,7 +778,9 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
             </div>
 
             {/* Scrollable Form Body */}
-            <form id="student-form" onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+            <form id="student-form" onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&_fieldset>section+section]:border-t [&_fieldset>section+section]:border-gray-100 dark:[&_fieldset>section+section]:border-slate-800 [&_fieldset>section+section]:pt-4">
+              {mutationError && <p role="alert" className="text-sm text-red-600">{mutationError}</p>}
+              <fieldset disabled={pending} className="contents">
               {/* Section 1: Personal Details */}
               <FormSection title="Personal Details" icon={User}>
                 <div>
@@ -828,7 +860,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
                   </label>
                   <select
                     value={formData.class || 'Nursery'}
-                    onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, class: e.target.value, section: classes.find(item => item.name === e.target.value)?.sections[0]?.name || '' })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     required
                   >
@@ -1081,12 +1113,14 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
                   </label>
                 </div>
               </FormSection>
+              </fieldset>
             </form>
 
             {/* Fixed Footer */}
             <div className="shrink-0 flex items-center justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
+                disabled={pending}
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
               >
@@ -1095,9 +1129,10 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
               <button
                 type="submit"
                 form="student-form"
+                disabled={pending}
                 className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-sm"
               >
-                {isEditing ? 'Save Changes' : 'Add Student'}
+                {pending ? 'Saving…' : isEditing ? 'Save Changes' : 'Add Student'}
               </button>
             </div>
           </div>
@@ -1127,7 +1162,7 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
             </div>
 
             {/* Scrollable Body */}
-            <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&>section+section]:border-t [&>section+section]:border-gray-100 dark:[&>section+section]:border-slate-800 [&>section+section]:pt-4">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-4 [&_fieldset>section+section]:border-t [&_fieldset>section+section]:border-gray-100 dark:[&_fieldset>section+section]:border-slate-800 [&_fieldset>section+section]:pt-4">
               <StudentSection title="Personal Details" icon={User}>
                 <StudentDetail label="First Name">{currentStudent.firstName}</StudentDetail>
                 <StudentDetail label="Last Name">{currentStudent.lastName}</StudentDetail>
@@ -1194,17 +1229,20 @@ STU2026802,Ananya,Sharma,2016-08-25,Female,6,B,reservation,14,Vikas Sharma,Pooja
               This action will delete the student and their associated fee ledger record.
             </p>
             <div className="flex justify-center gap-3">
+              {mutationError && <p role="alert" className="text-sm text-red-600">{mutationError}</p>}
               <button
+                disabled={pending}
                 onClick={() => setShowConfirm(false)}
                 className="px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition"
               >
                 Cancel
               </button>
               <button
+                disabled={pending}
                 onClick={handleDelete}
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition"
               >
-                Confirm Delete
+                {pending ? 'Deleting…' : 'Confirm Delete'}
               </button>
             </div>
           </div>

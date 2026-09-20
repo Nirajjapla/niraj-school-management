@@ -96,6 +96,8 @@ export interface StudentFeeRecord {
 }
 
 export interface Student {
+  classId?: string;
+  sectionId?: string;
   id: string;
   studentId: string;
   firstName: string;

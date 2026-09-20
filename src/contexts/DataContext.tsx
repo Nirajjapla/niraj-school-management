@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createMockStudentRepository, type StudentRepository, type CreateStudentInput, type UpdateStudentInput } from '../services/studentRepository';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Student,
   Employee,
@@ -85,8 +86,8 @@ interface DataContextType {
   deleteSection: (sectionId: string) => void;
 
   // Student Section Allocation
-  bulkAssignStudents: (studentIds: string[], targetClass: string, targetSection: string) => void;
-  assignStudentSection: (studentId: string, targetClass: string, targetSection: string) => void;
+  bulkAssignStudents: (studentIds: string[], targetClass: string, targetSection: string) => Promise<void>;
+  assignStudentSection: (studentId: string, targetClass: string, targetSection: string) => Promise<void>;
 
   // Subjects
   subjects: AcademicSubject[];
@@ -127,9 +128,12 @@ interface DataContextType {
   
   // Students
   students: Student[];
-  addStudent: (student: Omit<Student, 'id'>) => void;
-  updateStudent: (id: string, student: Partial<Student>) => void;
-  deleteStudent: (id: string) => void;
+  studentsLoading: boolean;
+  studentsError: string | null;
+  reloadStudents: () => Promise<void>;
+  addStudent: (student: CreateStudentInput) => Promise<Student>;
+  updateStudent: (id: string, student: UpdateStudentInput) => Promise<Student>;
+  deleteStudent: (id: string) => Promise<void>;
 
   // Employees (Teachers & Staff)
   employees: Employee[];
@@ -455,7 +459,7 @@ function loadAndMergeTransportRoutes(key: string, initialList: TransportRoute[])
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const DataProvider: React.FC<{ children: React.ReactNode; studentRepository?: StudentRepository }> = ({ children, studentRepository }) => {
   const [classes, setClasses] = useState<SchoolClass[]>(() => loadAndMerge('erp_classes', initialClasses));
   const [subjects, setSubjects] = useState<AcademicSubject[]>(() => loadAndMerge('erp_subjects', initialSubjects));
   const [exams, setExams] = useState<ExamSchedule[]>(() => loadAndMerge('erp_exams', initialExams));
@@ -464,7 +468,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [schools, setSchools] = useState<SchoolProfile[]>(() => loadAndMerge('erp_schools', initialSchools));
   const [departments, setDepartments] = useState<DepartmentItem[]>(() => loadAndMerge('erp_departments', initialDepartments));
   const [designations, setDesignations] = useState<DesignationItem[]>(() => loadAndMerge('erp_designations', initialDesignations));
-  const [students, setStudents] = useState<Student[]>(() => loadAndMerge('erp_students', initialStudents));
+  const [repository] = useState(() => studentRepository ?? createMockStudentRepository(localStorage, initialStudents));
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [studentsError, setStudentsError] = useState<string | null>(null);
+  const reloadStudents = useCallback(async () => {
+    setStudentsLoading(true);
+    setStudentsError(null);
+    try { setStudents(await repository.list()); }
+    catch (error) { setStudentsError(error instanceof Error ? error.message : 'Unable to load students.'); }
+    finally { setStudentsLoading(false); }
+  }, [repository]);
+  useEffect(() => { void reloadStudents(); }, [reloadStudents]);
   const [employees, setEmployees] = useState<Employee[]>(() => loadAndMerge('erp_employees', initialEmployees));
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(() => loadAndMergeFeeStructures('erp_fee_structures', initialFeeStructures));
   const [feeRecords, setFeeRecords] = useState<StudentFeeRecord[]>(() => loadAndMerge('erp_fee_records', initialFeeRecords));
@@ -500,7 +515,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('erp_schools', JSON.stringify(schools)); }, [schools]);
   useEffect(() => { localStorage.setItem('erp_departments', JSON.stringify(departments)); }, [departments]);
   useEffect(() => { localStorage.setItem('erp_designations', JSON.stringify(designations)); }, [designations]);
-  useEffect(() => { localStorage.setItem('erp_students', JSON.stringify(students)); }, [students]);
   useEffect(() => { localStorage.setItem('erp_employees', JSON.stringify(employees)); }, [employees]);
   useEffect(() => { localStorage.setItem('erp_fee_structures', JSON.stringify(feeStructures)); }, [feeStructures]);
   useEffect(() => { localStorage.setItem('erp_fee_records', JSON.stringify(feeRecords)); }, [feeRecords]);
@@ -530,17 +544,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Student CRUD
-  const addStudent = (studentData: Omit<Student, 'id'>) => {
-    const newId = `stu-${Date.now()}`;
-    const newStudent: Student = {
-      ...studentData,
-      id: newId,
-      isAvailingTransport:
-        studentData.isAvailingTransport !== undefined
-          ? studentData.isAvailingTransport
-          : Boolean(studentData.busRouteId)
-    };
+  const resolveReferences = (input: CreateStudentInput): CreateStudentInput => {
+    const schoolClass = classes.find(item => item.name === input.class);
+    const section = schoolClass?.sections.find(item => item.name === input.section);
+    if (!schoolClass || !section) throw new Error('Select an existing class and section.');
+    if (input.busRouteId && !transportRoutes.some(route => route.id === input.busRouteId)) {
+      throw new Error('Select an existing transport route.');
+    }
+    return { ...input, classId: schoolClass.id, sectionId: section.id };
+  };
+
+  const addStudent = async (studentData: CreateStudentInput): Promise<Student> => {
+    const newStudent = await repository.create(resolveReferences(studentData));
     setStudents(prev => [newStudent, ...prev]);
+    if (repository.mode === 'api') return newStudent;
 
     // Automatically create synchronized fee record based on class, category, and transport
     const newFeeRecord = syncFeeRecordForStudent(newStudent, undefined, feeStructures, transportRoutes);
@@ -556,13 +573,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         )
       );
     }
+    return newStudent;
   };
 
-  const updateStudent = (id: string, updated: Partial<Student>) => {
+  const updateStudent = async (id: string, updated: UpdateStudentInput): Promise<Student> => {
     const currentStudent = students.find(s => s.id === id);
-    if (!currentStudent) return;
+    if (!currentStudent) throw new Error('Student no longer exists. Reload the list.');
 
-    const mergedStudent: Student = {
+    const mergedStudent = await repository.update(id, resolveReferences({
       ...currentStudent,
       ...updated,
       isAvailingTransport:
@@ -571,9 +589,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : updated.busRouteId !== undefined
           ? Boolean(updated.busRouteId)
           : currentStudent.isAvailingTransport
-    };
+    }));
 
     setStudents(prev => prev.map(s => (s.id === id ? mergedStudent : s)));
+    if (repository.mode === 'api') return mergedStudent;
 
     // Re-sync fee record for the student, preserving payments and overrides
     setFeeRecords(prev => {
@@ -602,11 +621,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
       );
     }
+    return mergedStudent;
   };
 
-  const deleteStudent = (id: string) => {
+  const deleteStudent = async (id: string) => {
+    await repository.remove(id);
+    const removed = students.find(student => student.id === id);
     setStudents(prev => prev.filter(s => s.id !== id));
+    if (repository.mode === 'api') return;
     setFeeRecords(prev => prev.filter(f => f.studentId !== id));
+    if (removed?.busRouteId && removed.isAvailingTransport !== false) {
+      setTransportRoutes(prev => prev.map(route => route.id === removed.busRouteId
+        ? { ...route, assignedStudentsCount: Math.max(0, (route.assignedStudentsCount || 0) - 1) } : route));
+    }
   };
 
   // Employee CRUD
@@ -998,24 +1025,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Student Section Allocation
-  const bulkAssignStudents = (studentIds: string[], targetClass: string, targetSection: string) => {
-    setStudents(prev => prev.map(s => {
-      if (studentIds.includes(s.id)) {
-        return { ...s, class: targetClass, section: targetSection };
-      }
-      return s;
-    }));
-    setFeeRecords(prev => prev.map(f => {
-      if (studentIds.includes(f.studentId)) {
-        return { ...f, class: targetClass, section: targetSection };
-      }
-      return f;
-    }));
+  const bulkAssignStudents = async (studentIds: string[], targetClass: string, targetSection: string) => {
+    for (const id of studentIds) await updateStudent(id, { class: targetClass, section: targetSection });
   };
 
-  const assignStudentSection = (studentId: string, targetClass: string, targetSection: string) => {
+  const assignStudentSection = (studentId: string, targetClass: string, targetSection: string) =>
     bulkAssignStudents([studentId], targetClass, targetSection);
-  };
 
   // Subjects CRUD
   const addSubject = (subjectData: Omit<AcademicSubject, 'id'>) => {
@@ -1337,6 +1352,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateDesignation,
         deleteDesignation,
         students,
+        studentsLoading,
+        studentsError,
+        reloadStudents,
         addStudent,
         updateStudent,
         deleteStudent,

@@ -411,9 +411,11 @@ const AcademicManagement: React.FC = () => {
     }
   };
 
-  const handleInlineSectionChange = (student: Student, newSec: string) => {
-    assignStudentSection(student.id, student.class, newSec);
+  const handleInlineSectionChange = async (student: Student, newSec: string) => {
+    try {
+    await assignStudentSection(student.id, student.class, newSec);
     showToast(`${student.firstName} ${student.lastName} moved to Section ${newSec}`);
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Transfer failed.'); }
   };
 
   const handleOpenBulkTransfer = () => {
@@ -423,13 +425,15 @@ const AcademicManagement: React.FC = () => {
     setShowBulkTransferModal(true);
   };
 
-  const handleSaveBulkTransfer = (e: React.FormEvent) => {
+  const handleSaveBulkTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetTransferClass || !targetTransferSection) return;
-    bulkAssignStudents(selectedStudentIds, targetTransferClass, targetTransferSection);
+    try {
+    await bulkAssignStudents(selectedStudentIds, targetTransferClass, targetTransferSection);
     showToast(`Successfully transferred ${selectedStudentIds.length} students to Class ${targetTransferClass} - Sec ${targetTransferSection}`);
     setSelectedStudentIds([]);
     setShowBulkTransferModal(false);
+    } catch (error) { showToast(error instanceof Error ? `Transfer stopped: ${error.message}. Earlier transfers may have completed.` : 'Transfer failed.'); }
   };
 
   // ---------------- Handlers for Subjects ----------------
