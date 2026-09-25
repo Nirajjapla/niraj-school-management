@@ -253,8 +253,9 @@ const ExaminationManagement: React.FC = () => {
   );
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Examination & Results</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
@@ -279,185 +280,230 @@ const ExaminationManagement: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-        <div className="border-b border-gray-200 dark:border-slate-800">
-          <div className="flex">
-            <button
-              onClick={() => setActiveTab('exams')}
-              className={`flex items-center space-x-2 px-6 py-4 text-sm font-bold border-b-2 transition ${
-                activeTab === 'exams'
-                  ? 'border-[#4e74f9] text-[#4e74f9] bg-blue-50/40 dark:bg-blue-950/20'
-                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Examinations Schedule</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('results')}
-              className={`flex items-center space-x-2 px-6 py-4 text-sm font-bold border-b-2 transition ${
-                activeTab === 'results'
-                  ? 'border-[#4e74f9] text-[#4e74f9] bg-blue-50/40 dark:bg-blue-950/20'
-                  : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white'
-              }`}
-            >
-              <Award className="w-4 h-4" />
-              <span>Results & Marks (Teacher Uploaded)</span>
-            </button>
-          </div>
+      {/* Navigation Pillar Tabs */}
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-px">
+          <button
+            onClick={() => setActiveTab('exams')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'exams'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Examinations Schedule</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'exams'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {exams.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('results')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'results'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <Award className="w-4 h-4" />
+            <span>Results & Marks</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'results'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {examResults.length}
+            </span>
+          </button>
         </div>
-
-        <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="relative max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder={`Search ${activeTab === 'exams' ? 'exams by name/class' : 'results by student/subject/exam'}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:text-white outline-none text-sm"
-            />
-          </div>
-
-          {activeTab === 'results' && exams.length > 0 && (
-            <div className="flex items-center space-x-2">
-              <label className="text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider">Exam Filter:</label>
-              <select
-                value={selectedExamFilterId}
-                onChange={(e) => setSelectedExamFilterId(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-[#4e74f9]"
-              >
-                <option value="">All Exams</option>
-                {exams.map(ex => (
-                  <option key={ex.id} value={ex.id}>{ex.name} ({ex.className})</option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {activeTab === 'exams' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs">
-                <tr>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Exam Name</th>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Class</th>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Start Date</th>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">End Date</th>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Status</th>
-                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                {filteredExams.map((exam) => (
-                  <tr key={exam.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40">
-                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{exam.name}</td>
-                    <td className="px-6 py-4 text-gray-700 dark:text-slate-300">{exam.className}</td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{exam.startDate || '-'}</td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{exam.endDate || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 text-xs font-bold rounded-full capitalize ${
-                        exam.status === 'completed'
-                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                          : exam.status === 'ongoing'
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                          : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
-                      }`}>
-                        {exam.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button
-                        onClick={() => handleOpenEditExamModal(exam)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
-                        title="Edit Exam"
-                      >
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteExam(exam.id)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
-                        title="Delete Exam"
-                      >
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {filteredExams.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
-                      No examinations scheduled. Click "Create Exam" to schedule an examination.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700 text-xs">
-                <tr>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Student Name</th>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Exam</th>
-                  <th className="px-6 py-3.5 text-left font-semibold text-gray-600 dark:text-slate-300 uppercase">Subject</th>
-                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Marks Obtained</th>
-                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Max Marks</th>
-                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Percentage</th>
-                  <th className="px-6 py-3.5 text-center font-semibold text-gray-600 dark:text-slate-300 uppercase">Grade</th>
-                  <th className="px-6 py-3.5 text-right font-semibold text-gray-600 dark:text-slate-300 uppercase">Report Card</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                {filteredResults.map((result) => (
-                  <tr key={result.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40">
-                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                      {result.studentName}
-                      <span className="block text-[11px] font-normal text-gray-400">Roll #{result.rollNumber || '01'} • Class {result.class}-{result.section}</span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-700 dark:text-slate-300">{result.examName}</td>
-                    <td className="px-6 py-4 text-gray-700 dark:text-slate-300 font-medium">{result.subjectName}</td>
-                    <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{result.marksObtained}</td>
-                    <td className="px-6 py-4 text-right text-gray-500 dark:text-slate-400">{result.maxMarks}</td>
-                    <td className="px-6 py-4 text-right font-semibold text-gray-900 dark:text-white">{result.percentage}%</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2.5 py-1 text-xs font-extrabold rounded-full ${
-                        result.grade.startsWith('A')
-                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                          : result.grade.startsWith('B')
-                          ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
-                          : result.grade.startsWith('C')
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                          : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
-                      }`}>
-                        {result.grade}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleViewReportCard(result.examId, result.studentId)}
-                        className="inline-flex items-center space-x-1 text-xs font-bold text-[#4e74f9] hover:text-white hover:bg-[#4e74f9] bg-blue-50 dark:bg-blue-950/60 dark:text-blue-400 px-3 py-1.5 rounded-lg transition shadow-sm"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>View Card</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {filteredResults.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
-                      No results uploaded yet by faculty for this selection.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
+
+      {/* Tab 1: Exams Schedule */}
+      {activeTab === 'exams' && (
+        <div className="space-y-6">
+          {/* Action / Search Toolbar */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm">
+            <div className="relative max-w-md w-full">
+              <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search exams by name or class..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Examinations Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Exam Name</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Class</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Start Date</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">End Date</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {filteredExams.map((exam) => (
+                    <tr key={exam.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                      <td className="px-5 py-4 text-sm text-gray-900 dark:text-white font-medium">{exam.name}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{exam.className}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{exam.startDate || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{exam.endDate || '-'}</td>
+                      <td className="px-5 py-4 text-sm font-normal">
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${
+                          exam.status === 'completed'
+                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                            : exam.status === 'ongoing'
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                            : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                        }`}>
+                          {exam.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditExamModal(exam)}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition"
+                            title="Edit Exam"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteExam(exam.id)}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 transition"
+                            title="Delete Exam"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredExams.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-12 text-center text-gray-500 dark:text-slate-400">
+                        No examinations scheduled. Click "Create Exam" to schedule an examination.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Results & Marks */}
+      {activeTab === 'results' && (
+        <div className="space-y-6">
+          {/* Action / Search & Filter Toolbar */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md w-full">
+              <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search results by student, subject, or exam..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {exams.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Exam:</label>
+                <select
+                  value={selectedExamFilterId}
+                  onChange={(e) => setSelectedExamFilterId(e.target.value)}
+                  className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[160px]"
+                >
+                  <option value="">All Exams</option>
+                  {exams.map(ex => (
+                    <option key={ex.id} value={ex.id}>{ex.name} ({ex.className})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Results Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Student Name</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Exam</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Subject</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Marks</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Max Marks</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Percentage</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Grade</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Report Card</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {filteredResults.map((result) => (
+                    <tr key={result.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                      <td className="px-5 py-4 text-sm text-gray-900 dark:text-white font-medium">
+                        {result.studentName}
+                        <span className="block text-xs font-normal text-gray-500 dark:text-slate-400">Roll #{result.rollNumber || '01'} • Class {result.class}-{result.section}</span>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{result.examName}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{result.subjectName}</td>
+                      <td className="px-5 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">{result.marksObtained}</td>
+                      <td className="px-5 py-4 text-right text-sm text-gray-500 dark:text-slate-400 font-normal">{result.maxMarks}</td>
+                      <td className="px-5 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">{result.percentage}%</td>
+                      <td className="px-5 py-4 text-center">
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                          result.grade.startsWith('A')
+                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                            : result.grade.startsWith('B')
+                            ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                            : result.grade.startsWith('C')
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                            : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
+                        }`}>
+                          {result.grade}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <button
+                          onClick={() => handleViewReportCard(result.examId, result.studentId)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 dark:bg-blue-950/60 dark:text-blue-400 px-3 py-1.5 rounded-lg transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Card</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredResults.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-12 text-center text-gray-500 dark:text-slate-400">
+                        No results uploaded yet by faculty for this selection.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CREATE / EDIT EXAM MODAL */}
       {showExamModal && (

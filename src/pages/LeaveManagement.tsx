@@ -328,31 +328,47 @@ const LeaveManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* View Switcher Tabs */}
-      <div className="flex bg-gray-100 dark:bg-slate-800/80 p-1 rounded-xl w-fit border border-gray-200/50 dark:border-slate-700/50">
-        <button
-          onClick={() => setActiveView('all-leaves')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-            activeView === 'all-leaves'
-              ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm'
-              : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>All Leaves</span>
-        </button>
+      {/* Navigation Pillar Tabs */}
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-px">
+          <button
+            onClick={() => setActiveView('all-leaves')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeView === 'all-leaves'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>All Leaves</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeView === 'all-leaves'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {leaves.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveView('quota-balances')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-            activeView === 'quota-balances'
-              ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm'
-              : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Leave Quota & Balances</span>
-        </button>
+          <button
+            onClick={() => setActiveView('quota-balances')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeView === 'quota-balances'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Leave Quota & Balances</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeView === 'quota-balances'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {employees.length}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* VIEW 1: ALL LEAVES */}

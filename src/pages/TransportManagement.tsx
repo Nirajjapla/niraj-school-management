@@ -210,30 +210,47 @@ const TransportManagement: React.FC = () => {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-slate-800 gap-6 text-sm font-medium">
-        <button
-          onClick={() => setActiveTab('routes')}
-          className={`pb-3 relative transition flex items-center gap-2 ${
-            activeTab === 'routes'
-              ? 'text-[#4e74f9] border-b-2 border-[#4e74f9] font-bold'
-              : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
-          }`}
-        >
-          <Bus className="w-4 h-4" />
-          Transport Routes & Timings ({transportRoutes.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('assets')}
-          className={`pb-3 relative transition flex items-center gap-2 ${
-            activeTab === 'assets'
-              ? 'text-[#4e74f9] border-b-2 border-[#4e74f9] font-bold'
-              : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
-          }`}
-        >
-          <ShieldAlert className="w-4 h-4" />
-          Fleet Asset Management & Compliance
-        </button>
+      {/* Navigation Pillar Tabs */}
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-px">
+          <button
+            onClick={() => setActiveTab('routes')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'routes'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <Bus className="w-4 h-4" />
+            <span>Transport Routes & Timings</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'routes'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {transportRoutes.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('assets')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'assets'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span>Fleet Asset Management & Compliance</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'assets'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {transportRoutes.length}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Routes View */}

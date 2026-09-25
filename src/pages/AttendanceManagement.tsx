@@ -390,18 +390,22 @@ export const AttendanceManagement: React.FC = () => {
 
       {/* Navigation Pillar Tabs */}
       <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-px">
           <button
             onClick={() => setActiveTab('student')}
             className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'student'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
-                : 'border-transparent text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:border-gray-300'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
             }`}
           >
             <Users className="w-4 h-4" />
             <span>Student Attendance Hub</span>
-            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'student'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
               {students.length}
             </span>
           </button>
@@ -410,13 +414,17 @@ export const AttendanceManagement: React.FC = () => {
             onClick={() => setActiveTab('staff')}
             className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'staff'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-t-lg'
-                : 'border-transparent text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:border-gray-300'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
             }`}
           >
             <GraduationCap className="w-4 h-4" />
             <span>Teacher & Staff Attendance</span>
-            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'staff'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
               {employees.length}
             </span>
           </button>
