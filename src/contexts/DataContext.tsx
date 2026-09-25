@@ -1,4 +1,5 @@
 import { createMockStudentRepository, type StudentRepository, type CreateStudentInput, type UpdateStudentInput } from '../services/studentRepository';
+import { createMockLeaveRepository, type LeaveRepository, type CreateLeaveInput, type UpdateLeaveInput } from '../services/leaveRepository';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Student,
@@ -170,9 +171,14 @@ interface DataContextType {
 
   // Leaves
   leaves: LeaveRequest[];
-  applyLeave: (leave: Omit<LeaveRequest, 'id' | 'appliedDate' | 'status'>) => void;
-  approveLeave: (leaveId: string, approvedBy?: string) => void;
-  rejectLeave: (leaveId: string, reason: string) => void;
+  leavesLoading: boolean;
+  leavesError: string | null;
+  reloadLeaves: () => Promise<void>;
+  applyLeave: (leave: CreateLeaveInput) => Promise<LeaveRequest>;
+  updateLeave: (id: string, leave: UpdateLeaveInput) => Promise<LeaveRequest>;
+  deleteLeave: (id: string) => Promise<void>;
+  approveLeave: (leaveId: string, approvedBy?: string) => Promise<LeaveRequest>;
+  rejectLeave: (leaveId: string, reason: string, approvedBy?: string) => Promise<LeaveRequest>;
 
   // Circulars
   circulars: CircularItem[];
@@ -459,7 +465,11 @@ function loadAndMergeTransportRoutes(key: string, initialList: TransportRoute[])
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export const DataProvider: React.FC<{ children: React.ReactNode; studentRepository?: StudentRepository }> = ({ children, studentRepository }) => {
+export const DataProvider: React.FC<{
+  children: React.ReactNode;
+  studentRepository?: StudentRepository;
+  leaveRepository?: LeaveRepository;
+}> = ({ children, studentRepository, leaveRepository }) => {
   const [classes, setClasses] = useState<SchoolClass[]>(() => loadAndMerge('erp_classes', initialClasses));
   const [subjects, setSubjects] = useState<AcademicSubject[]>(() => loadAndMerge('erp_subjects', initialSubjects));
   const [exams, setExams] = useState<ExamSchedule[]>(() => loadAndMerge('erp_exams', initialExams));
@@ -485,7 +495,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode; studentReposito
   const [feeRecords, setFeeRecords] = useState<StudentFeeRecord[]>(() => loadAndMerge('erp_fee_records', initialFeeRecords));
   const [transportRoutes, setTransportRoutes] = useState<TransportRoute[]>(() => loadAndMergeTransportRoutes('erp_transport_routes', initialTransportRoutes));
   const [drivers] = useState(() => initialDrivers);
-  const [leaves, setLeaves] = useState<LeaveRequest[]>(() => loadAndMerge('erp_leaves', initialLeaves));
+
+  // Leaves (Repository-backed for API-readiness)
+  const [leaveRepo] = useState(() => leaveRepository ?? createMockLeaveRepository(localStorage, initialLeaves));
+  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [leavesLoading, setLeavesLoading] = useState(true);
+  const [leavesError, setLeavesError] = useState<string | null>(null);
+  const reloadLeaves = useCallback(async () => {
+    setLeavesLoading(true);
+    setLeavesError(null);
+    try {
+      setLeaves(await leaveRepo.list());
+    } catch (error) {
+      setLeavesError(error instanceof Error ? error.message : 'Unable to load leaves.');
+    } finally {
+      setLeavesLoading(false);
+    }
+  }, [leaveRepo]);
+  useEffect(() => { void reloadLeaves(); }, [reloadLeaves]);
+
   const [circulars, setCirculars] = useState<CircularItem[]>(() => loadAndMerge('erp_circulars', initialCirculars));
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => loadAndMerge('erp_notifications', initialNotifications));
   const [conversations, setConversations] = useState<ChatConversation[]>(() => loadAndMerge('erp_conversations', initialConversations));
@@ -738,42 +766,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode; studentReposito
     setTransportRoutes(prev => prev.filter(r => r.id !== id));
   };
 
-  // Leaves
-  const applyLeave = (leaveData: Omit<LeaveRequest, 'id' | 'appliedDate' | 'status'>) => {
-    const newLeave: LeaveRequest = {
-      ...leaveData,
-      id: `lv-${Date.now()}`,
-      appliedDate: new Date().toISOString().split('T')[0],
-      status: 'pending'
-    };
-    setLeaves(prev => [newLeave, ...prev]);
-
-    // Also add notification for admin
+  // Leaves (Repository-backed)
+  const applyLeave = async (leaveData: CreateLeaveInput) => {
+    const created = await leaveRepo.create(leaveData);
+    await reloadLeaves();
     addNotification({
       type: 'teacher_leave',
       title: 'New Leave Application',
-      message: `${leaveData.employeeName} (${leaveData.leaveType}) requested leave for ${leaveData.daysCount} day(s).`,
+      message: `${created.employeeName} (${created.leaveType} Leave) requested leave for ${created.daysCount} day(s).`,
       priority: 'High',
       actionUrl: 'leaves'
     });
+    return created;
   };
 
-  const approveLeave = (leaveId: string, approvedBy = 'Admin') => {
-    setLeaves(prev => prev.map(l => {
-      if (l.id === leaveId) {
-        return { ...l, status: 'approved', approvedBy };
-      }
-      return l;
-    }));
+  const updateLeave = async (id: string, leaveData: UpdateLeaveInput) => {
+    const updated = await leaveRepo.update(id, leaveData);
+    await reloadLeaves();
+    return updated;
   };
 
-  const rejectLeave = (leaveId: string, reason: string) => {
-    setLeaves(prev => prev.map(l => {
-      if (l.id === leaveId) {
-        return { ...l, status: 'rejected', rejectionReason: reason, approvedBy: 'Admin' };
-      }
-      return l;
-    }));
+  const deleteLeave = async (id: string) => {
+    await leaveRepo.remove(id);
+    await reloadLeaves();
+  };
+
+  const approveLeave = async (leaveId: string, approvedBy = 'Admin') => {
+    const approved = await leaveRepo.approve(leaveId, approvedBy);
+    await reloadLeaves();
+    return approved;
+  };
+
+  const rejectLeave = async (leaveId: string, reason: string, approvedBy = 'Admin') => {
+    const rejected = await leaveRepo.reject(leaveId, reason, approvedBy);
+    await reloadLeaves();
+    return rejected;
   };
 
   // Circulars
@@ -1378,7 +1405,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode; studentReposito
         updateTransportRoute,
         deleteTransportRoute,
         leaves,
+        leavesLoading,
+        leavesError,
+        reloadLeaves,
         applyLeave,
+        updateLeave,
+        deleteLeave,
         approveLeave,
         rejectLeave,
         circulars,

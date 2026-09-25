@@ -154,6 +154,9 @@ export interface Employee {
   fatherName?: string;
   experienceYears?: number;
   experienceMonths?: number;
+  previousSchool?: string;
+  previousDesignation?: string;
+  areasOfExpertise?: string;
   subject?: string;
   className?: string;
   section?: string;
@@ -202,19 +205,22 @@ export interface TransportRoute {
   monthlyFare?: number;
 }
 
+export type LeaveType = 'Paid' | 'Unpaid';
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
 export interface LeaveRequest {
   id: string;
   employeeId: string;
   employeeName: string;
   employeeRole: 'teacher' | 'admin' | 'support' | 'student';
   designation?: string;
-  leaveType: 'Casual Leave' | 'Sick Leave' | 'Earned Leave' | 'Maternity Leave';
+  leaveType: LeaveType;
   isPaid: boolean;
   startDate: string;
   endDate: string;
   daysCount: number;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: LeaveStatus;
   rejectionReason?: string;
   appliedDate: string;
   approvedBy?: string;
@@ -752,6 +758,19 @@ export const initialEmployees: Employee[] = [
     qualification: 'M.Sc., B.Ed.',
     gender: 'Female',
     bloodGroup: 'B+',
+    maritalStatus: 'Married',
+    fatherName: 'R. C. Sharma',
+    spouseName: 'Vikas Sharma',
+    experienceYears: 8,
+    experienceMonths: 6,
+    previousSchool: 'Delhi Public School, R.K. Puram',
+    previousDesignation: 'TGT Mathematics',
+    areasOfExpertise: 'Calculus, Algebra, CBSE Board Examination Prep',
+    subject: 'Mathematics',
+    className: '10',
+    section: 'A',
+    address: { street: '12 Rosewood Enclave', city: 'New Delhi', state: 'Delhi', zip: '110001' },
+    emergencyContact: '+91 98234 00000',
     leaveBalance: {
       casual: { total: 12, taken: 3 },
       sick: { total: 10, taken: 2 },
@@ -772,6 +791,19 @@ export const initialEmployees: Employee[] = [
     qualification: 'M.Sc. Physics, M.Ed.',
     gender: 'Male',
     bloodGroup: 'O+',
+    maritalStatus: 'Married',
+    fatherName: 'K. L. Mehta',
+    spouseName: 'Sunita Mehta',
+    experienceYears: 12,
+    experienceMonths: 0,
+    previousSchool: 'St. Xavier Senior Secondary School',
+    previousDesignation: 'Senior Physics Faculty',
+    areasOfExpertise: 'Mechanics, Electromagnetism, Science Lab In-charge',
+    subject: 'Science',
+    className: '9',
+    section: 'A',
+    address: { street: '45-B Green Avenue', city: 'New Delhi', state: 'Delhi', zip: '110016' },
+    emergencyContact: '+91 98345 00000',
     leaveBalance: {
       casual: { total: 12, taken: 5 },
       sick: { total: 10, taken: 1 },
@@ -791,6 +823,18 @@ export const initialEmployees: Employee[] = [
     qualification: 'B.A., NTT Certified',
     gender: 'Female',
     bloodGroup: 'A+',
+    maritalStatus: 'Single',
+    fatherName: 'G. N. Patel',
+    experienceYears: 6,
+    experienceMonths: 4,
+    previousSchool: 'Modern Early Learning Academy',
+    previousDesignation: 'Primary Educator',
+    areasOfExpertise: 'Early Childhood Pedagogy, Activity-based Learning',
+    subject: 'English',
+    className: 'Nursery',
+    section: 'A',
+    address: { street: '78 Model Town', city: 'New Delhi', state: 'Delhi', zip: '110009' },
+    emergencyContact: '+91 98456 00000',
     leaveBalance: {
       casual: { total: 12, taken: 2 },
       sick: { total: 10, taken: 0 },
@@ -2344,7 +2388,7 @@ export const initialLeaves: LeaveRequest[] = [
     employeeName: 'Anita Sharma',
     employeeRole: 'teacher',
     designation: 'Senior Mathematics Teacher',
-    leaveType: 'Casual Leave',
+    leaveType: 'Paid',
     isPaid: true,
     startDate: '2026-09-15',
     endDate: '2026-09-16',
@@ -2359,7 +2403,7 @@ export const initialLeaves: LeaveRequest[] = [
     employeeName: 'Vikram Mehta',
     employeeRole: 'teacher',
     designation: 'Head of Science Department',
-    leaveType: 'Sick Leave',
+    leaveType: 'Paid',
     isPaid: true,
     startDate: '2026-09-12',
     endDate: '2026-09-13',
@@ -2375,7 +2419,7 @@ export const initialLeaves: LeaveRequest[] = [
     employeeName: 'Rohan Deshmukh',
     employeeRole: 'admin',
     designation: 'Chief Accounts Officer',
-    leaveType: 'Earned Leave',
+    leaveType: 'Paid',
     isPaid: true,
     startDate: '2026-09-20',
     endDate: '2026-09-25',
@@ -2390,7 +2434,7 @@ export const initialLeaves: LeaveRequest[] = [
     employeeName: 'Dinesh Chandra',
     employeeRole: 'support',
     designation: 'Transport & Fleet Supervisor',
-    leaveType: 'Casual Leave',
+    leaveType: 'Unpaid',
     isPaid: false,
     startDate: '2026-08-25',
     endDate: '2026-08-26',
@@ -2399,6 +2443,38 @@ export const initialLeaves: LeaveRequest[] = [
     status: 'rejected',
     rejectionReason: 'Transport audit scheduled on the same dates; minimum staff required.',
     appliedDate: '2026-08-20',
+    approvedBy: 'Admin'
+  },
+  {
+    id: 'lv-5',
+    employeeId: 'emp-3',
+    employeeName: 'Sunita Patel',
+    employeeRole: 'teacher',
+    designation: 'Pre-Primary Coordinator & Teacher',
+    leaveType: 'Paid',
+    isPaid: true,
+    startDate: '2026-09-01',
+    endDate: '2026-09-02',
+    daysCount: 2,
+    reason: 'Medical checkup and personal appointment',
+    status: 'approved',
+    appliedDate: '2026-08-28',
+    approvedBy: 'Admin'
+  },
+  {
+    id: 'lv-6',
+    employeeId: 'emp-1',
+    employeeName: 'Anita Sharma',
+    employeeRole: 'teacher',
+    designation: 'Senior Mathematics Teacher',
+    leaveType: 'Unpaid',
+    isPaid: false,
+    startDate: '2026-08-10',
+    endDate: '2026-08-12',
+    daysCount: 3,
+    reason: 'Extended family commitment',
+    status: 'approved',
+    appliedDate: '2026-08-05',
     approvedBy: 'Admin'
   }
 ];

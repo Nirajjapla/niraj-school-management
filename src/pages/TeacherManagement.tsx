@@ -35,13 +35,15 @@ interface Teacher {
   subject: string;
   qualification: string;
   joiningDate: string;
-  dob: string;
   gender: 'Male' | 'Female' | 'Other';
   maritalStatus: 'Single' | 'Married' | 'Divorced' | 'Widowed';
   fatherName: string;
   spouseName: string;
   experienceYears: number;
   experienceMonths: number;
+  previousSchool?: string;
+  previousDesignation?: string;
+  areasOfExpertise?: string;
   address: Address;
   emergencyContact: string;
   bloodGroup: string;
@@ -99,13 +101,15 @@ const TeacherManagement: React.FC = () => {
     subject: '',
     qualification: '',
     joiningDate: '',
-    dob: '',
     gender: 'Female',
     maritalStatus: 'Married',
     fatherName: '',
     spouseName: '',
-    experienceYears: 4,
+    experienceYears: 8,
     experienceMonths: 6,
+    previousSchool: 'Delhi Public School, R.K. Puram',
+    previousDesignation: 'TGT Mathematics',
+    areasOfExpertise: 'Calculus, Algebra, CBSE Board Examination Prep',
     address: { street: '', city: 'New Delhi', state: 'Delhi', zip: '110001' },
     emergencyContact: '',
     bloodGroup: 'B+',
@@ -127,13 +131,15 @@ const TeacherManagement: React.FC = () => {
       subject: t.subject || t.department || 'Mathematics',
       qualification: t.qualification || 'M.Sc., B.Ed.',
       joiningDate: t.joiningDate || '2021-06-15',
-      dob: '1988-04-12',
       gender: (t.gender as any) || 'Female',
       maritalStatus: t.maritalStatus || 'Married',
       fatherName: t.fatherName || 'R. C. Sharma',
       spouseName: t.spouseName || (t.maritalStatus === 'Married' ? 'V. Sharma' : ''),
       experienceYears: t.experienceYears ?? 5,
       experienceMonths: t.experienceMonths ?? 4,
+      previousSchool: t.previousSchool || '',
+      previousDesignation: t.previousDesignation || '',
+      areasOfExpertise: t.areasOfExpertise || '',
       address: t.address || { street: '12 School Lane', city: 'New Delhi', state: 'Delhi', zip: '110001' },
       emergencyContact: t.emergencyContact || '+91 98765 00000',
       bloodGroup: t.bloodGroup || 'B+',
@@ -163,13 +169,15 @@ const TeacherManagement: React.FC = () => {
       subject: dbSubjects[0]?.name || 'Mathematics',
       qualification: 'M.Sc., B.Ed.',
       joiningDate: new Date().toISOString().split('T')[0],
-      dob: '1990-01-01',
       gender: 'Female',
       maritalStatus: 'Single',
       fatherName: '',
       spouseName: '',
       experienceYears: 3,
       experienceMonths: 0,
+      previousSchool: '',
+      previousDesignation: '',
+      areasOfExpertise: '',
       address: { street: '', city: 'New Delhi', state: 'Delhi', zip: '110001' },
       emergencyContact: '',
       bloodGroup: 'B+',
@@ -222,6 +230,9 @@ const TeacherManagement: React.FC = () => {
         spouseName: formData.spouseName,
         experienceYears: Number(formData.experienceYears) || 0,
         experienceMonths: Number(formData.experienceMonths) || 0,
+        previousSchool: formData.previousSchool,
+        previousDesignation: formData.previousDesignation,
+        areasOfExpertise: formData.areasOfExpertise,
         emergencyContact: formData.emergencyContact,
         address: formData.address
       });
@@ -243,6 +254,9 @@ const TeacherManagement: React.FC = () => {
         spouseName: formData.spouseName,
         experienceYears: Number(formData.experienceYears) || 0,
         experienceMonths: Number(formData.experienceMonths) || 0,
+        previousSchool: formData.previousSchool,
+        previousDesignation: formData.previousDesignation,
+        areasOfExpertise: formData.areasOfExpertise,
         subject: formData.subject,
         className: formData.className,
         section: formData.section,
@@ -291,7 +305,7 @@ const TeacherManagement: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search by name, ID, subject..."
+                placeholder="Search by name, ID, subject, experience..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none text-sm"
@@ -377,7 +391,14 @@ const TeacherManagement: React.FC = () => {
                     Class {teacher.className} ({teacher.section})
                   </td>
                   <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                    {teacher.experienceYears}y {teacher.experienceMonths}m
+                    <div>
+                      <span>{teacher.experienceYears}y {teacher.experienceMonths}m</span>
+                      {teacher.previousSchool && (
+                        <span className="block text-xs text-gray-400 dark:text-slate-500 truncate max-w-[180px]">
+                          {teacher.previousSchool}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                     {teacher.phone}
@@ -472,19 +493,6 @@ const TeacherManagement: React.FC = () => {
                     type="text"
                     value={formData.lastName || ''}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                    Date of Birth <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.dob || ''}
-                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                     required
                   />
@@ -647,8 +655,8 @@ const TeacherManagement: React.FC = () => {
                 </div>
               </FormSection>
 
-              {/* Section 2: Professional & Academic Details */}
-              <FormSection title="Professional & Academic Details" icon={GraduationCap}>
+              {/* Section 2: Professional & Experience Details */}
+              <FormSection title="Professional & Experience Details" icon={GraduationCap}>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Subject Specialization <span className="text-red-500">*</span>
@@ -691,30 +699,71 @@ const TeacherManagement: React.FC = () => {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                      Experience (Years)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={40}
+                      value={formData.experienceYears ?? 0}
+                      onChange={(e) => setFormData({ ...formData, experienceYears: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                      Experience (Months)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={11}
+                      value={formData.experienceMonths ?? 0}
+                      onChange={(e) => setFormData({ ...formData, experienceMonths: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                    Experience (Years)
+                    Previous School / Institution
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    max={40}
-                    value={formData.experienceYears ?? 0}
-                    onChange={(e) => setFormData({ ...formData, experienceYears: Number(e.target.value) })}
+                    type="text"
+                    placeholder="e.g. Delhi Public School, R.K. Puram"
+                    value={formData.previousSchool || ''}
+                    onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                    Experience (Months)
+                    Previous Designation / Role
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    max={11}
-                    value={formData.experienceMonths ?? 0}
-                    onChange={(e) => setFormData({ ...formData, experienceMonths: Number(e.target.value) })}
+                    type="text"
+                    placeholder="e.g. Senior PGT Physics Faculty"
+                    value={formData.previousDesignation || ''}
+                    onChange={(e) => setFormData({ ...formData, previousDesignation: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Areas of Expertise & Key Specialization
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. CBSE Board Evaluator, Olympiad Trainer, STEM Curriculum Lead"
+                    value={formData.areasOfExpertise || ''}
+                    onChange={(e) => setFormData({ ...formData, areasOfExpertise: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
                   />
                 </div>
@@ -843,7 +892,6 @@ const TeacherManagement: React.FC = () => {
               <TeacherSection title="Personal Details" icon={User}>
                 <TeacherDetail label="First Name">{currentTeacher.firstName}</TeacherDetail>
                 <TeacherDetail label="Last Name">{currentTeacher.lastName}</TeacherDetail>
-                <TeacherDetail label="Date of Birth">{currentTeacher.dob}</TeacherDetail>
                 <TeacherDetail label="Gender">{currentTeacher.gender}</TeacherDetail>
                 <TeacherDetail label="Marital Status">{currentTeacher.maritalStatus}</TeacherDetail>
                 <TeacherDetail label="Blood Group">{currentTeacher.bloodGroup}</TeacherDetail>
@@ -856,11 +904,14 @@ const TeacherManagement: React.FC = () => {
                 <TeacherDetail label="ZIP / PIN Code">{currentTeacher.address?.zip}</TeacherDetail>
               </TeacherSection>
 
-              <TeacherSection title="Professional & Academic Details" icon={GraduationCap}>
+              <TeacherSection title="Professional & Experience Details" icon={GraduationCap}>
                 <TeacherDetail label="Subject Specialization">{currentTeacher.subject}</TeacherDetail>
                 <TeacherDetail label="Qualifications">{currentTeacher.qualification}</TeacherDetail>
                 <TeacherDetail label="Joining Date">{currentTeacher.joiningDate}</TeacherDetail>
                 <TeacherDetail label="Total Experience">{currentTeacher.experienceYears} Years {currentTeacher.experienceMonths} Months</TeacherDetail>
+                <TeacherDetail label="Previous Institution">{currentTeacher.previousSchool || 'N/A'}</TeacherDetail>
+                <TeacherDetail label="Previous Role">{currentTeacher.previousDesignation || 'N/A'}</TeacherDetail>
+                <TeacherDetail label="Areas of Expertise" fullWidth>{currentTeacher.areasOfExpertise || 'General Pedagogy & Classroom Instruction'}</TeacherDetail>
               </TeacherSection>
 
               <TeacherSection title="Family & Background Details" icon={Users}>
