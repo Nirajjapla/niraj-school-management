@@ -83,22 +83,9 @@ export const AttendanceManagement: React.FC = () => {
   };
 
   // --- Student Attendance State ---
-  const [selectedClass, setSelectedClass] = useState<string>('10');
-  const [selectedSection, setSelectedSection] = useState<string>('A');
+  const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedSection, setSelectedSection] = useState<string>('all');
   const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
-  const [studentStatusFilter, setStudentStatusFilter] = useState<string>('all');
-
-  // Student Override Modal State
-  const [showOverrideModal, setShowOverrideModal] = useState<boolean>(false);
-  const [overrideStudentId, setOverrideStudentId] = useState<string>('');
-  const [overrideStudentName, setOverrideStudentName] = useState<string>('');
-  const [overrideCurrentStatus, setOverrideCurrentStatus] = useState<string>('Present');
-  const [overrideNewStatus, setOverrideNewStatus] = useState<'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused'>('Present');
-  const [overrideReason, setOverrideReason] = useState<string>('');
-
-  // Bulk Student Action Modal State
-  const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
-  const [bulkStatusTarget, setBulkStatusTarget] = useState<'Present' | 'Absent'>('Present');
 
   // --- Staff Attendance State ---
   const [staffRoleFilter, setStaffRoleFilter] = useState<string>('all'); // all | teacher | admin | support
@@ -127,27 +114,23 @@ export const AttendanceManagement: React.FC = () => {
   // -------------------------------------------------------------
   // Filtered Student List & Attendance Resolution
   // -------------------------------------------------------------
-  const currentClassObj = useMemo(() => {
-    return classes.find(c => (c.name || '').toLowerCase() === (selectedClass || '').toLowerCase()) || classes[0];
-  }, [classes, selectedClass]);
-
-  const availableSections = useMemo(() => {
-    return currentClassObj?.sections || [];
-  }, [currentClassObj]);
-
-  // Ensure valid section is selected
-  React.useEffect(() => {
-    if (availableSections.length > 0 && !availableSections.some(s => s.name === selectedSection)) {
-      setSelectedSection(availableSections[0].name);
+  const availableSectionNames = useMemo(() => {
+    if (selectedClass === 'all') {
+      const set = new Set<string>();
+      classes.forEach(c => c.sections?.forEach(s => set.add(s.name)));
+      return Array.from(set).sort();
     }
-  }, [availableSections, selectedSection]);
+    const cls = classes.find(c => (c.name || '').toLowerCase() === selectedClass.toLowerCase());
+    return cls ? cls.sections.map(s => s.name) : [];
+  }, [classes, selectedClass]);
 
   // Students belonging to the chosen class & section
   const sectionStudents = useMemo(() => {
-    return students.filter(
-      s => (s.class || '').toLowerCase() === (selectedClass || '').toLowerCase() &&
-           (s.section || '').toLowerCase() === (selectedSection || '').toLowerCase()
-    );
+    return students.filter(s => {
+      const matchClass = selectedClass === 'all' || (s.class || '').toLowerCase() === selectedClass.toLowerCase();
+      const matchSection = selectedSection === 'all' || (s.section || '').toLowerCase() === selectedSection.toLowerCase();
+      return matchClass && matchSection;
+    });
   }, [students, selectedClass, selectedSection]);
 
   // Merged Student Attendance Roster for Selected Date
@@ -167,7 +150,7 @@ export const AttendanceManagement: React.FC = () => {
           section: stu.section,
           date: selectedDate,
           status: 'Present' as const, // Default fallback
-          markedBy: currentClassObj?.sections?.find(s => s.name === stu.section)?.classTeacherName || 'Class Teacher',
+          markedBy: 'Class Teacher',
           markedByRole: 'Teacher' as const,
           markedAt: '08:00 AM',
           source: 'Teacher Mobile App' as const,
@@ -175,9 +158,9 @@ export const AttendanceManagement: React.FC = () => {
         }
       };
     });
-  }, [sectionStudents, studentAttendance, selectedDate, currentClassObj]);
+  }, [sectionStudents, studentAttendance, selectedDate]);
 
-  // Filtered Student Roster by search and status
+  // Filtered Student Roster by search
   const filteredStudentRoster = useMemo(() => {
     return studentRoster.filter(item => {
       const q = studentSearchQuery.toLowerCase();
@@ -187,113 +170,58 @@ export const AttendanceManagement: React.FC = () => {
         (item.student.rollNumber || '').toLowerCase().includes(q) ||
         (item.student.studentId || '').toLowerCase().includes(q);
 
-      const matchStatus =
-        studentStatusFilter === 'all'
-          ? true
-          : studentStatusFilter === 'overridden'
-          ? item.attendance.isOverridden
-          : (item.attendance.status || '').toLowerCase() === studentStatusFilter.toLowerCase();
-
-      return matchSearch && matchStatus;
+      return matchSearch;
     });
-  }, [studentRoster, studentSearchQuery, studentStatusFilter]);
+  }, [studentRoster, studentSearchQuery]);
 
-  // Class Teacher of current section
-  const currentSectionTeacher = useMemo(() => {
-    const sec = availableSections.find(s => s.name === selectedSection);
-    return sec?.classTeacherName || 'Class Teacher';
-  }, [availableSections, selectedSection]);
-
-  // Stats for current class & section
+  // Stats for current class & section: Present and Absent
   const studentStats = useMemo(() => {
-    const total = studentRoster.length;
     let present = 0;
     let absent = 0;
-    let late = 0;
-    let halfDay = 0;
-    let excused = 0;
-    let overridden = 0;
 
     studentRoster.forEach(({ attendance }) => {
       if (attendance.status === 'Present') present++;
       else if (attendance.status === 'Absent') absent++;
-      else if (attendance.status === 'Late') late++;
-      else if (attendance.status === 'Half Day') halfDay++;
-      else if (attendance.status === 'Excused') excused++;
-
-      if (attendance.isOverridden) overridden++;
     });
 
-    const attendancePct = total > 0 ? Math.round(((present + late + (halfDay * 0.5)) / total) * 100) : 0;
-
-    return { total, present, absent, late, halfDay, excused, overridden, attendancePct };
+    return { present, absent };
   }, [studentRoster]);
 
   // Quick One-Click Student Status Setter
-  const handleQuickStatusChange = (studentId: string, newStatus: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused') => {
+  const handleQuickStatusChange = (studentId: string, newStatus: 'Present' | 'Absent') => {
     const stu = students.find(s => s.id === studentId);
     overrideStudentAttendance(studentId, selectedDate, newStatus, 'Quick update by Admin', 'Admin');
     showToast(`Attendance updated to "${newStatus}" for ${stu?.firstName} ${stu?.lastName}`);
   };
 
-  // Trigger Student Override Modal
-  const handleOpenOverrideModal = (stuId: string, stuName: string, curStatus: string, remarks?: string) => {
-    setOverrideStudentId(stuId);
-    setOverrideStudentName(stuName);
-    setOverrideCurrentStatus(curStatus);
-    setOverrideNewStatus(curStatus as any);
-    setOverrideReason(remarks || '');
-    setShowOverrideModal(true);
-  };
-
-  // Submit Student Override
-  const handleSaveOverride = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!overrideStudentId) return;
-    overrideStudentAttendance(
-      overrideStudentId,
-      selectedDate,
-      overrideNewStatus,
-      overrideReason || 'Admin administrative override',
-      'School Admin'
-    );
-    setShowOverrideModal(false);
-    showToast(`Successfully overridden attendance for ${overrideStudentName} to ${overrideNewStatus}.`);
-  };
-
   // Bulk Mark Student Action
   const handleBulkMarkStudents = (statusToSet: 'Present' | 'Absent') => {
-    const records = sectionStudents.map(s => ({
-      studentId: s.id,
+    const records = filteredStudentRoster.map(({ student }) => ({
+      studentId: student.id,
       status: statusToSet
     }));
     bulkMarkStudentAttendance(records, selectedClass, selectedSection, selectedDate, 'School Admin');
-    setShowBulkModal(false);
-    showToast(`Bulk marked all ${records.length} students of Class ${selectedClass}-${selectedSection} as "${statusToSet}".`);
+    showToast(`Bulk marked all ${records.length} students as "${statusToSet}".`);
   };
 
   // Export Student CSV
   const handleExportStudentCSV = () => {
-    const headers = ['Roll No', 'Student Name', 'Admission No', 'Class', 'Section', 'Date', 'Status', 'Marked By', 'Source', 'Overridden', 'Remarks'];
-    const rows = studentRoster.map(r => [
-      r.student.rollNumber,
+    const headers = ['Roll No', 'Student Name', 'Admission No', 'Class', 'Section', 'Date', 'Status'];
+    const rows = filteredStudentRoster.map(r => [
+      r.student.rollNumber || '',
       `"${r.student.firstName} ${r.student.lastName}"`,
-      r.student.studentId,
-      r.student.class,
-      r.student.section,
+      r.student.studentId || '',
+      r.student.class || '',
+      r.student.section || '',
       selectedDate,
-      r.attendance.status,
-      `"${r.attendance.markedBy}"`,
-      `"${r.attendance.source}"`,
-      r.attendance.isOverridden ? 'YES' : 'NO',
-      `"${r.attendance.overrideRemarks || ''}"`
+      r.attendance.status
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Student_Attendance_Class_${selectedClass}_${selectedSection}_${selectedDate}.csv`);
+    link.setAttribute('download', `Student_Attendance_${selectedClass}_${selectedSection}_${selectedDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -604,155 +532,75 @@ export const AttendanceManagement: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'student' && (
         <div className="space-y-6">
-          {/* Class, Section & Teacher Submission Banner */}
+          {/* Class & Section Dropdown Selectors */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-              {/* Class & Section Selector Controls */}
-              <div className="flex flex-wrap items-center gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                    Select Class
-                  </label>
-                  <select
-                    value={selectedClass}
-                    onChange={(e) => setSelectedClass(e.target.value)}
-                    className="px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[130px]"
-                  >
-                    {classes.map(c => (
-                      <option key={c.id} value={c.name}>
-                        Class {c.name} ({c.stage})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                    Select Section
-                  </label>
-                  <div className="flex items-center bg-gray-100 dark:bg-slate-800 p-1 rounded-xl border border-gray-200 dark:border-slate-700">
-                    {availableSections.map(s => (
-                      <button
-                        key={s.id}
-                        onClick={() => setSelectedSection(s.name)}
-                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                          selectedSection === s.name
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
-                        }`}
-                      >
-                        Section {s.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Select Class
+                </label>
+                <select
+                  value={selectedClass}
+                  onChange={(e) => {
+                    setSelectedClass(e.target.value);
+                    setSelectedSection('all');
+                  }}
+                  className="px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[140px]"
+                >
+                  <option value="all">All Classes</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.name}>
+                      Class {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Teacher App Submission Card */}
-              <div className="flex items-center gap-4 p-3.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-100 dark:border-blue-900/50">
-                <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-md">
-                  <Smartphone className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-                      Teacher App Submission
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      <CheckCircle2 className="w-3 h-3" /> Synced
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-0.5">
-                    Marked by {currentSectionTeacher} <span className="text-xs font-normal text-gray-500 dark:text-slate-400">(08:05 AM)</span>
-                  </p>
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Select Section
+                </label>
+                <select
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  className="px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[140px]"
+                >
+                  <option value="all">All Sections</option>
+                  {availableSectionNames.map(s => (
+                    <option key={s} value={s}>
+                      Section {s}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-gray-500 dark:text-slate-400">
-                <span className="text-xs font-medium uppercase">Total Students</span>
-                <Users className="w-4 h-4 text-blue-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">
-                {studentStats.total}
-              </p>
-              <div className="text-[11px] font-medium text-blue-600 dark:text-blue-400 mt-0.5">
-                Attendance Rate: {studentStats.attendancePct}%
-              </div>
-            </div>
-
+          {/* Quick Metrics Bar: Present & Absent only */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                <span className="text-xs font-medium uppercase">Present</span>
-                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase tracking-wider">Present</span>
+                <CheckCircle2 className="w-5 h-5" />
               </div>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
                 {studentStats.present}
               </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                In Classroom
-              </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
-                <span className="text-xs font-medium uppercase">Absent</span>
-                <XCircle className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase tracking-wider">Absent</span>
+                <XCircle className="w-5 h-5" />
               </div>
-              <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+              <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-2">
                 {studentStats.absent}
               </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                Unexcused
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-                <span className="text-xs font-medium uppercase">Late</span>
-                <Clock className="w-4 h-4" />
-              </div>
-              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                {studentStats.late}
-              </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                After 08:15 AM
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-sky-600 dark:text-sky-400">
-                <span className="text-xs font-medium uppercase">Excused / HD</span>
-                <HelpCircle className="w-4 h-4" />
-              </div>
-              <p className="text-2xl font-bold text-sky-600 dark:text-sky-400 mt-1">
-                {studentStats.excused + studentStats.halfDay}
-              </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                Medical / Informed
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400">
-                <span className="text-xs font-medium uppercase">Admin Overridden</span>
-                <Shield className="w-4 h-4" />
-              </div>
-              <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                {studentStats.overridden}
-              </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                Manual corrections
-              </div>
             </div>
           </div>
 
-          {/* Action and Filter Toolbar */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm">
+          {/* Action Toolbar without filter pills */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm">
             {/* Search Input */}
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -763,30 +611,6 @@ export const AttendanceManagement: React.FC = () => {
                 onChange={(e) => setStudentSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </div>
-
-            {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 mr-1">Filter:</span>
-              {[
-                { id: 'all', label: 'All Students' },
-                { id: 'present', label: 'Present' },
-                { id: 'absent', label: 'Absent' },
-                { id: 'late', label: 'Late' },
-                { id: 'overridden', label: '🛡️ Overridden' }
-              ].map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => setStudentStatusFilter(f.id)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                    studentStatusFilter === f.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
             </div>
 
             {/* Quick Batch Actions */}
@@ -809,214 +633,76 @@ export const AttendanceManagement: React.FC = () => {
             </div>
           </div>
 
-          {/* Student Roster Table */}
+          {/* Student Attendance Register Table */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">
-                  Class {selectedClass} - Section {selectedSection} Attendance Register
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Showing {filteredStudentRoster.length} of {studentRoster.length} students for {selectedDate}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Live Admin Override Enabled
-              </div>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-100 text-base">
+                Attendance register
+              </h3>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/75 dark:bg-slate-800/50 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 border-b border-gray-200 dark:border-slate-800">
-                    <th className="py-3.5 px-6">Roll & Student</th>
-                    <th className="py-3.5 px-4">Admission ID</th>
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Current Status</th>
-                    <th className="py-3.5 px-4 text-center">1-Click Quick Update</th>
-                    <th className="py-3.5 px-4">Source / Log</th>
-                    <th className="py-3.5 px-6 text-right">Admin Override</th>
+                    <th className="py-3.5 px-6">Name</th>
+                    <th className="py-3.5 px-6">Roll Number</th>
+                    <th className="py-3.5 px-6">Attendance Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800/80 text-sm">
                   {filteredStudentRoster.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-12">
-                        <Users className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
-                        <p className="text-gray-500 dark:text-slate-400 font-medium">No students found matching current filters.</p>
-                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Try resetting the search query or section selection.</p>
+                      <td colSpan={3} className="text-center py-12 text-gray-500 dark:text-slate-400">
+                        No students found matching current filters.
                       </td>
                     </tr>
                   ) : (
                     filteredStudentRoster.map(({ student, attendance }) => {
                       const isPresent = attendance.status === 'Present';
                       const isAbsent = attendance.status === 'Absent';
-                      const isLate = attendance.status === 'Late';
-                      const isHalfDay = attendance.status === 'Half Day';
-                      const isExcused = attendance.status === 'Excused';
 
                       return (
                         <tr
                           key={student.id}
                           className="hover:bg-gray-50/80 dark:hover:bg-slate-800/40 transition-colors"
                         >
-                          {/* Student Info */}
+                          {/* Name */}
+                          <td className="py-4 px-6 font-medium text-gray-900 dark:text-slate-100">
+                            {student.firstName} {student.lastName}
+                          </td>
+
+                          {/* Roll Number */}
+                          <td className="py-4 px-6 text-gray-600 dark:text-slate-400">
+                            {student.rollNumber || '—'}
+                          </td>
+
+                          {/* Attendance Status */}
                           <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              <span className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                                {student.rollNumber || '#'}
-                              </span>
-                              <div>
-                                <div className="font-bold text-gray-900 dark:text-slate-100">
-                                  {student.firstName} {student.lastName}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-slate-400">
-                                  Roll No: {student.rollNumber || 'N/A'} • Parent: {student.parentName}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Admission ID */}
-                          <td className="py-4 px-4 font-mono text-xs text-gray-600 dark:text-slate-400">
-                            {student.studentId}
-                          </td>
-
-                          {/* Category */}
-                          <td className="py-4 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
-                                student.category === 'reservation'
-                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
-                                  : 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
-                              }`}
-                            >
-                              {student.category === 'reservation' ? 'RTE / Res' : 'General'}
-                            </span>
-                          </td>
-
-                          {/* Current Status Pill */}
-                          <td className="py-4 px-4">
                             <div className="flex items-center gap-2">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                                  isPresent
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
-                                    : isAbsent
-                                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300'
-                                    : isLate
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
-                                    : isHalfDay
-                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300'
-                                    : 'bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300'
-                                }`}
-                              >
-                                {isPresent && <CheckCircle2 className="w-3.5 h-3.5" />}
-                                {isAbsent && <XCircle className="w-3.5 h-3.5" />}
-                                {isLate && <Clock className="w-3.5 h-3.5" />}
-                                {isHalfDay && <HelpCircle className="w-3.5 h-3.5" />}
-                                {isExcused && <Check className="w-3.5 h-3.5" />}
-                                {attendance.status}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* 1-Click Quick Update Buttons */}
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-center gap-1 bg-gray-100 dark:bg-slate-800/80 p-1 rounded-lg border border-gray-200 dark:border-slate-700 w-fit mx-auto">
                               <button
-                                title="Mark Present"
+                                type="button"
                                 onClick={() => handleQuickStatusChange(student.id, 'Present')}
-                                className={`w-7 h-7 rounded text-xs font-bold transition-all ${
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isPresent
-                                    ? 'bg-emerald-600 text-white shadow'
-                                    : 'text-gray-600 dark:text-slate-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 hover:text-emerald-700'
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
                                 }`}
                               >
-                                P
+                                Present
                               </button>
                               <button
-                                title="Mark Absent"
+                                type="button"
                                 onClick={() => handleQuickStatusChange(student.id, 'Absent')}
-                                className={`w-7 h-7 rounded text-xs font-bold transition-all ${
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isAbsent
-                                    ? 'bg-rose-600 text-white shadow'
-                                    : 'text-gray-600 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-950/60 hover:text-rose-700'
+                                    ? 'bg-rose-600 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
                                 }`}
                               >
-                                A
-                              </button>
-                              <button
-                                title="Mark Late"
-                                onClick={() => handleQuickStatusChange(student.id, 'Late')}
-                                className={`w-7 h-7 rounded text-xs font-bold transition-all ${
-                                  isLate
-                                    ? 'bg-amber-600 text-white shadow'
-                                    : 'text-gray-600 dark:text-slate-400 hover:bg-amber-100 dark:hover:bg-amber-950/60 hover:text-amber-700'
-                                }`}
-                              >
-                                L
-                              </button>
-                              <button
-                                title="Mark Excused"
-                                onClick={() => handleQuickStatusChange(student.id, 'Excused')}
-                                className={`w-7 h-7 rounded text-xs font-bold transition-all ${
-                                  isExcused
-                                    ? 'bg-sky-600 text-white shadow'
-                                    : 'text-gray-600 dark:text-slate-400 hover:bg-sky-100 dark:hover:bg-sky-950/60 hover:text-sky-700'
-                                }`}
-                              >
-                                Ex
+                                Absent
                               </button>
                             </div>
-                          </td>
-
-                          {/* Source & Marked Info */}
-                          <td className="py-4 px-4 text-xs text-gray-500 dark:text-slate-400">
-                            <div className="flex items-center gap-1.5">
-                              {attendance.source === 'Teacher Mobile App' ? (
-                                <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
-                                  <Smartphone className="w-3.5 h-3.5" /> Mobile App
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-medium">
-                                  <Shield className="w-3.5 h-3.5" /> Admin Portal
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">
-                              {attendance.markedBy} ({attendance.markedAt})
-                            </div>
-                          </td>
-
-                          {/* Admin Override Action */}
-                          <td className="py-4 px-6 text-right">
-                            {attendance.isOverridden ? (
-                              <div className="flex flex-col items-end">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
-                                  <Shield className="w-3 h-3" /> Overridden
-                                </span>
-                                {attendance.overrideRemarks && (
-                                  <span className="text-[11px] text-gray-500 dark:text-slate-400 italic max-w-[180px] truncate mt-0.5" title={attendance.overrideRemarks}>
-                                    "{attendance.overrideRemarks}"
-                                  </span>
-                                )}
-                                <button
-                                  onClick={() => handleOpenOverrideModal(student.id, `${student.firstName} ${student.lastName}`, attendance.status, attendance.overrideRemarks)}
-                                  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline mt-1"
-                                >
-                                  Edit Override
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleOpenOverrideModal(student.id, `${student.firstName} ${student.lastName}`, attendance.status)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-semibold transition-all"
-                              >
-                                <Edit3 className="w-3 h-3 text-gray-500" />
-                                Override
-                              </button>
-                            )}
                           </td>
                         </tr>
                       );
@@ -1498,95 +1184,7 @@ export const AttendanceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL: ADMIN STUDENT OVERRIDE */}
-      {/* ========================================================================= */}
-      {showOverrideModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-700 to-indigo-700 text-white">
-              <div className="flex items-center gap-2.5">
-                <Shield className="w-5 h-5" />
-                <h3 className="font-bold text-base">Administrative Attendance Override</h3>
-              </div>
-              <button
-                onClick={() => setShowOverrideModal(false)}
-                className="text-white/80 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSaveOverride} className="p-6 space-y-4">
-              <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-100 dark:border-blue-900/50">
-                <div className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Student</div>
-                <div className="font-bold text-gray-900 dark:text-slate-100 text-base mt-0.5">
-                  {overrideStudentName}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Date: {selectedDate} • Current Status: <span className="font-semibold">{overrideCurrentStatus}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                  Override Status To
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {(['Present', 'Absent', 'Late', 'Half Day', 'Excused'] as const).map(status => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setOverrideNewStatus(status)}
-                      className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all ${
-                        overrideNewStatus === status
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                          : 'bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Administrative Override Reason / Justification
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="e.g., Parent called school office with doctor slip, verified bus delay on Route 4, inter-school tournament duty..."
-                  value={overrideReason}
-                  onChange={(e) => setOverrideReason(e.target.value)}
-                  className="w-full p-3 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-800/60 p-3 rounded-xl">
-                🛡️ <strong>Audit Trail Note:</strong> This change will overwrite the teacher's mobile submission and record your administrative digital signature with timestamp.
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowOverrideModal(false)}
-                  className="px-4 py-2 text-sm font-semibold text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20"
-                >
-                  Confirm & Apply Override
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* MODAL: STAFF ATTENDANCE EDIT */}
