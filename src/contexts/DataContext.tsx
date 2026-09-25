@@ -223,6 +223,53 @@ function loadAndMerge<T extends { id: string }>(key: string, initialList: T[]): 
   }
 }
 
+function loadAndMergeStudentAttendance(key: string, initialList: StudentAttendanceRecord[]): StudentAttendanceRecord[] {
+  const local = localStorage.getItem(key);
+  if (!local) return initialList;
+  try {
+    const parsed: StudentAttendanceRecord[] = JSON.parse(local);
+    if (!Array.isArray(parsed)) return initialList;
+    const initialMap = new Map(initialList.map(a => [a.id, a]));
+    const upgraded = parsed.map(item => {
+      const canonical = initialMap.get(item.id);
+      if (item.status === 'Late' || item.status === 'Half Day' || item.status === 'Excused') {
+        return canonical || { ...item, status: 'On Leave' as const };
+      }
+      if (canonical && !item.isOverridden) {
+        return { ...item, status: canonical.status, overrideRemarks: canonical.overrideRemarks };
+      }
+      return item;
+    });
+    const existingIds = new Set(upgraded.map(item => item.id));
+    const missingItems = initialList.filter(item => !existingIds.has(item.id));
+    return [...upgraded, ...missingItems];
+  } catch {
+    return initialList;
+  }
+}
+
+function loadAndMergeStaffAttendance(key: string, initialList: StaffAttendanceRecord[]): StaffAttendanceRecord[] {
+  const local = localStorage.getItem(key);
+  if (!local) return initialList;
+  try {
+    const parsed: StaffAttendanceRecord[] = JSON.parse(local);
+    if (!Array.isArray(parsed)) return initialList;
+    const initialMap = new Map(initialList.map(a => [a.id, a]));
+    const upgraded = parsed.map(item => {
+      const canonical = initialMap.get(item.id);
+      if (item.status === 'Late' || item.status === 'Half Day') {
+        return canonical || { ...item, status: 'Present' as const };
+      }
+      return item;
+    });
+    const existingIds = new Set(upgraded.map(item => item.id));
+    const missingItems = initialList.filter(item => !existingIds.has(item.id));
+    return [...upgraded, ...missingItems];
+  } catch {
+    return initialList;
+  }
+}
+
 export function computeComponentMonthlyAmount(comp: FeeComponent): number {
   switch (comp.frequency) {
     case 'Monthly':
@@ -565,10 +612,10 @@ export const DataProvider: React.FC<{
     }
   });
   const [studentAttendance, setStudentAttendance] = useState<StudentAttendanceRecord[]>(() =>
-    loadAndMerge('erp_student_attendance', initialStudentAttendance)
+    loadAndMergeStudentAttendance('erp_student_attendance', initialStudentAttendance)
   );
   const [staffAttendance, setStaffAttendance] = useState<StaffAttendanceRecord[]>(() =>
-    loadAndMerge('erp_staff_attendance', initialStaffAttendance)
+    loadAndMergeStaffAttendance('erp_staff_attendance', initialStaffAttendance)
   );
 
   // Sync to localStorage
@@ -1237,7 +1284,7 @@ export const DataProvider: React.FC<{
   const overrideStudentAttendance = (
     studentId: string,
     date: string,
-    status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused',
+    status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused' | 'On Leave',
     remarks?: string,
     overrideBy?: string
   ) => {

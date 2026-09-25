@@ -168,7 +168,7 @@ export const AttendanceManagement: React.FC = () => {
   }, [studentRoster]);
 
   // Quick One-Click Student Status Setter
-  const handleQuickStatusChange = (studentId: string, newStatus: 'Present' | 'Absent') => {
+  const handleQuickStatusChange = (studentId: string, newStatus: 'Present' | 'Absent' | 'On Leave') => {
     const stu = students.find(s => s.id === studentId);
     overrideStudentAttendance(studentId, selectedDate, newStatus, 'Quick update by Admin', 'Admin');
     showToast(`Attendance updated to "${newStatus}" for ${stu?.firstName} ${stu?.lastName}`);
@@ -288,7 +288,7 @@ export const AttendanceManagement: React.FC = () => {
   }, [staffRoster]);
 
   // Quick Staff Status Setter
-  const handleQuickStaffStatus = (empId: string, status: 'Present' | 'Absent') => {
+  const handleQuickStaffStatus = (empId: string, status: 'Present' | 'Absent' | 'On Leave') => {
     const emp = employees.find(e => e.id === empId);
     const empName = emp?.name || `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() || 'Staff';
     markStaffAttendance(
@@ -297,7 +297,7 @@ export const AttendanceManagement: React.FC = () => {
       status,
       status === 'Present' ? '08:00 AM' : undefined,
       status === 'Present' ? '03:30 PM' : undefined,
-      'Status updated by Admin'
+      status === 'On Leave' ? 'Marked on leave by Admin' : 'Status updated by Admin'
     );
     showToast(`Attendance updated to "${status}" for ${empName}`);
   };
@@ -590,36 +590,41 @@ export const AttendanceManagement: React.FC = () => {
 
                           {/* Attendance Status */}
                           <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                            {isOnLeave ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStatusChange(student.id, 'Present')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                  isPresent
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
+                                }`}
+                              >
+                                Present
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStatusChange(student.id, 'Absent')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                  isAbsent
+                                    ? 'bg-rose-600 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
+                                }`}
+                              >
+                                Absent
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStatusChange(student.id, 'On Leave')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                  isOnLeave
+                                    ? 'bg-amber-500 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40'
+                                }`}
+                              >
                                 On Leave
-                              </span>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(student.id, 'Present')}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                    isPresent
-                                      ? 'bg-emerald-600 text-white shadow-sm'
-                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
-                                  }`}
-                                >
-                                  Present
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(student.id, 'Absent')}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                    isAbsent
-                                      ? 'bg-rose-600 text-white shadow-sm'
-                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
-                                  }`}
-                                >
-                                  Absent
-                                </button>
-                              </div>
-                            )}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -755,36 +760,41 @@ export const AttendanceManagement: React.FC = () => {
 
                           {/* Attendance Toggle */}
                           <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                            {isOnLeave ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStaffStatus(employee.id, 'Present')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                  isPresent
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
+                                }`}
+                              >
+                                Present
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStaffStatus(employee.id, 'Absent')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                  isAbsent
+                                    ? 'bg-rose-600 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
+                                }`}
+                              >
+                                Absent
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStaffStatus(employee.id, 'On Leave')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                  isOnLeave
+                                    ? 'bg-amber-500 text-white shadow-sm'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40'
+                                }`}
+                              >
                                 On Leave
-                              </span>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStaffStatus(employee.id, 'Present')}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                    isPresent
-                                      ? 'bg-emerald-600 text-white shadow-sm'
-                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
-                                  }`}
-                                >
-                                  Present
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStaffStatus(employee.id, 'Absent')}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                    isAbsent
-                                      ? 'bg-rose-600 text-white shadow-sm'
-                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
-                                  }`}
-                                >
-                                  Absent
-                                </button>
-                              </div>
-                            )}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
