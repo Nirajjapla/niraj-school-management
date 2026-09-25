@@ -179,6 +179,15 @@ interface DataContextType {
   deleteLeave: (id: string) => Promise<void>;
   approveLeave: (leaveId: string, approvedBy?: string) => Promise<LeaveRequest>;
   rejectLeave: (leaveId: string, reason: string, approvedBy?: string) => Promise<LeaveRequest>;
+  updateEmployeeLeaveQuota: (employeeId: string, quota: number) => void;
+  bulkUpdateLeaveQuota: (role: 'teacher' | 'admin' | 'support' | 'all', quota: number) => void;
+  getEmployeeLeaveBalance: (employeeId: string) => {
+    quota: number;
+    usedPaid: number;
+    remainingPaid: number;
+    usedUnpaid: number;
+    pendingPaid: number;
+  };
 
   // Circulars
   circulars: CircularItem[];
@@ -463,6 +472,34 @@ function loadAndMergeTransportRoutes(key: string, initialList: TransportRoute[])
   }
 }
 
+function loadAndMergeEmployees(key: string, initialList: Employee[]): Employee[] {
+  const local = localStorage.getItem(key);
+  if (!local) return initialList;
+  try {
+    const parsed: Employee[] = JSON.parse(local);
+    if (!Array.isArray(parsed)) return initialList;
+    const initialMap = new Map(initialList.map(e => [e.id, e]));
+    const upgraded = parsed.map(item => {
+      const canonical = initialMap.get(item.id);
+      const defaultQuota = item.role === 'teacher' ? 18 : 15;
+      return {
+        ...item,
+        paidLeaveQuota: item.paidLeaveQuota ?? canonical?.paidLeaveQuota ?? defaultQuota,
+        experienceYears: item.experienceYears ?? canonical?.experienceYears,
+        experienceMonths: item.experienceMonths ?? canonical?.experienceMonths,
+        previousSchool: item.previousSchool ?? canonical?.previousSchool,
+        previousDesignation: item.previousDesignation ?? canonical?.previousDesignation,
+        areasOfExpertise: item.areasOfExpertise ?? canonical?.areasOfExpertise
+      };
+    });
+    const existingIds = new Set(upgraded.map(item => item.id));
+    const missingItems = initialList.filter(item => !existingIds.has(item.id));
+    return [...upgraded, ...missingItems];
+  } catch {
+    return initialList;
+  }
+}
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{
@@ -490,7 +527,7 @@ export const DataProvider: React.FC<{
     finally { setStudentsLoading(false); }
   }, [repository]);
   useEffect(() => { void reloadStudents(); }, [reloadStudents]);
-  const [employees, setEmployees] = useState<Employee[]>(() => loadAndMerge('erp_employees', initialEmployees));
+  const [employees, setEmployees] = useState<Employee[]>(() => loadAndMergeEmployees('erp_employees', initialEmployees));
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(() => loadAndMergeFeeStructures('erp_fee_structures', initialFeeStructures));
   const [feeRecords, setFeeRecords] = useState<StudentFeeRecord[]>(() => loadAndMerge('erp_fee_records', initialFeeRecords));
   const [transportRoutes, setTransportRoutes] = useState<TransportRoute[]>(() => loadAndMergeTransportRoutes('erp_transport_routes', initialTransportRoutes));
@@ -802,6 +839,50 @@ export const DataProvider: React.FC<{
     await reloadLeaves();
     return rejected;
   };
+
+  // Leave Quota Management
+  const updateEmployeeLeaveQuota = (employeeId: string, quota: number) => {
+    setEmployees(prev => prev.map(e => e.id === employeeId ? { ...e, paidLeaveQuota: Math.max(0, Math.round(quota)) } : e));
+  };
+
+  const bulkUpdateLeaveQuota = (role: 'teacher' | 'admin' | 'support' | 'all', quota: number) => {
+    const validQuota = Math.max(0, Math.round(quota));
+    setEmployees(prev => prev.map(e => {
+      if (role === 'all' || e.role === role) {
+        return { ...e, paidLeaveQuota: validQuota };
+      }
+      return e;
+    }));
+  };
+
+  const getEmployeeLeaveBalance = useCallback((employeeId: string) => {
+    const emp = employees.find(e => e.id === employeeId);
+    const quota = emp?.paidLeaveQuota ?? (emp?.role === 'teacher' ? 18 : 15);
+    
+    const empLeaves = leaves.filter(l => l.employeeId === employeeId);
+    
+    const usedPaid = empLeaves
+      .filter(l => (l.leaveType === 'Paid' || l.isPaid) && l.status === 'approved')
+      .reduce((sum, l) => sum + (l.daysCount || 1), 0);
+
+    const pendingPaid = empLeaves
+      .filter(l => (l.leaveType === 'Paid' || l.isPaid) && l.status === 'pending')
+      .reduce((sum, l) => sum + (l.daysCount || 1), 0);
+
+    const usedUnpaid = empLeaves
+      .filter(l => (l.leaveType === 'Unpaid' || !l.isPaid) && l.status === 'approved')
+      .reduce((sum, l) => sum + (l.daysCount || 1), 0);
+
+    const remainingPaid = Math.max(0, quota - usedPaid);
+
+    return {
+      quota,
+      usedPaid,
+      remainingPaid,
+      usedUnpaid,
+      pendingPaid
+    };
+  }, [employees, leaves]);
 
   // Circulars
   const addCircular = (circularData: Omit<CircularItem, 'id'>) => {
@@ -1413,6 +1494,9 @@ export const DataProvider: React.FC<{
         deleteLeave,
         approveLeave,
         rejectLeave,
+        updateEmployeeLeaveQuota,
+        bulkUpdateLeaveQuota,
+        getEmployeeLeaveBalance,
         circulars,
         addCircular,
         deleteCircular,

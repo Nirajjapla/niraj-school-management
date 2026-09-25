@@ -36,6 +36,7 @@ interface Staff {
   pinCode: string;
   emergencyContact: string;
   bloodGroup: string;
+  paidLeaveQuota: number;
 }
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -115,6 +116,7 @@ const StaffManagement: React.FC = () => {
     pinCode: '',
     emergencyContact: '',
     bloodGroup: '',
+    paidLeaveQuota: 15,
   });
 
   const staff: Staff[] = rawStaff.map(s => {
@@ -137,7 +139,8 @@ const StaffManagement: React.FC = () => {
       state: s.address?.state || 'Delhi',
       pinCode: s.address?.zip || '110001',
       emergencyContact: s.emergencyContact || '+91 98765 00000',
-      bloodGroup: s.bloodGroup || 'B+'
+      bloodGroup: s.bloodGroup || 'B+',
+      paidLeaveQuota: s.paidLeaveQuota ?? 15
     };
   });
 
@@ -167,6 +170,7 @@ const StaffManagement: React.FC = () => {
       pinCode: '110001',
       emergencyContact: '',
       bloodGroup: 'B+',
+      paidLeaveQuota: 15,
     });
     setShowModal(true);
   };
@@ -174,7 +178,10 @@ const StaffManagement: React.FC = () => {
   const handleEdit = (staffMember: Staff) => {
     setIsEditing(true);
     setCurrentStaff(staffMember);
-    setFormData(staffMember);
+    setFormData({
+      ...staffMember,
+      paidLeaveQuota: staffMember.paidLeaveQuota ?? 15
+    });
     setShowModal(true);
   };
 
@@ -207,7 +214,8 @@ const StaffManagement: React.FC = () => {
           city: formData.city || 'New Delhi',
           state: formData.state || 'Delhi',
           zip: formData.pinCode || '110001'
-        }
+        },
+        paidLeaveQuota: Number(formData.paidLeaveQuota) || 15
       });
     } else {
       addEmployee({
@@ -229,6 +237,7 @@ const StaffManagement: React.FC = () => {
           state: formData.state || 'Delhi',
           zip: formData.pinCode || '110001'
         },
+        paidLeaveQuota: Number(formData.paidLeaveQuota) || 15,
         leaveBalance: {
           casual: { total: 15, taken: 0 },
           sick: { total: 12, taken: 0 },
@@ -435,6 +444,7 @@ const StaffManagement: React.FC = () => {
                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Designation</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Department</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Leave Quota</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Phone</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">DOB</th>
                     <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
@@ -447,6 +457,11 @@ const StaffManagement: React.FC = () => {
                       <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{`${staffMember.firstName} ${staffMember.lastName}`}</td>
                       <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.designation}</td>
                       <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.department}</td>
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 text-xs font-semibold">
+                          {staffMember.paidLeaveQuota ?? 15} Days
+                        </span>
+                      </td>
                       <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.phone}</td>
                       <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.dob}</td>
                       <td className="px-5 py-4 text-center">
@@ -825,6 +840,20 @@ const StaffManagement: React.FC = () => {
                     required
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Annual Paid Leave Quota (Days)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={formData.paidLeaveQuota ?? 15}
+                    onChange={(e) => setFormData({ ...formData, paidLeaveQuota: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
               </FormSection>
 
               {/* Section 3: Contact Details */}
@@ -920,6 +949,7 @@ const StaffManagement: React.FC = () => {
                 <StaffDetail label="Designation">{currentStaff.designation}</StaffDetail>
                 <StaffDetail label="Department">{currentStaff.department}</StaffDetail>
                 <StaffDetail label="Joining Date">{currentStaff.joiningDate}</StaffDetail>
+                <StaffDetail label="Annual Leave Quota">{currentStaff.paidLeaveQuota ?? 15} Days / Year</StaffDetail>
               </StaffSection>
 
               <StaffSection title="Contact Information" icon={Phone}>

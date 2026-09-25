@@ -168,6 +168,7 @@ export interface Employee {
   };
   emergencyContact?: string;
   leaveBalance: StaffLeaveBalance;
+  paidLeaveQuota?: number; // Annual Paid Leave Quota in days
   firstName?: string;
   lastName?: string;
   employeeId?: string;
@@ -771,6 +772,7 @@ export const initialEmployees: Employee[] = [
     section: 'A',
     address: { street: '12 Rosewood Enclave', city: 'New Delhi', state: 'Delhi', zip: '110001' },
     emergencyContact: '+91 98234 00000',
+    paidLeaveQuota: 18,
     leaveBalance: {
       casual: { total: 12, taken: 3 },
       sick: { total: 10, taken: 2 },
@@ -804,6 +806,7 @@ export const initialEmployees: Employee[] = [
     section: 'A',
     address: { street: '45-B Green Avenue', city: 'New Delhi', state: 'Delhi', zip: '110016' },
     emergencyContact: '+91 98345 00000',
+    paidLeaveQuota: 18,
     leaveBalance: {
       casual: { total: 12, taken: 5 },
       sick: { total: 10, taken: 1 },
@@ -835,6 +838,7 @@ export const initialEmployees: Employee[] = [
     section: 'A',
     address: { street: '78 Model Town', city: 'New Delhi', state: 'Delhi', zip: '110009' },
     emergencyContact: '+91 98456 00000',
+    paidLeaveQuota: 18,
     leaveBalance: {
       casual: { total: 12, taken: 2 },
       sick: { total: 10, taken: 0 },
@@ -854,6 +858,7 @@ export const initialEmployees: Employee[] = [
     qualification: 'M.Com, CA Inter',
     gender: 'Male',
     bloodGroup: 'AB+',
+    paidLeaveQuota: 15,
     leaveBalance: {
       casual: { total: 15, taken: 4 },
       sick: { total: 12, taken: 1 },
@@ -873,6 +878,7 @@ export const initialEmployees: Employee[] = [
     qualification: 'Diploma in Auto Engg',
     gender: 'Male',
     bloodGroup: 'B-',
+    paidLeaveQuota: 15,
     leaveBalance: {
       casual: { total: 10, taken: 2 },
       sick: { total: 8, taken: 0 },

@@ -49,6 +49,7 @@ interface Teacher {
   bloodGroup: string;
   className: string;
   section: string;
+  paidLeaveQuota: number;
 }
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -115,6 +116,7 @@ const TeacherManagement: React.FC = () => {
     bloodGroup: 'B+',
     className: '',
     section: 'A',
+    paidLeaveQuota: 18,
   });
 
   const teachers: Teacher[] = rawTeachers.map(t => {
@@ -144,7 +146,8 @@ const TeacherManagement: React.FC = () => {
       emergencyContact: t.emergencyContact || '+91 98765 00000',
       bloodGroup: t.bloodGroup || 'B+',
       className: t.className || '10',
-      section: t.section || 'A'
+      section: t.section || 'A',
+      paidLeaveQuota: t.paidLeaveQuota ?? 18
     };
   });
 
@@ -183,6 +186,7 @@ const TeacherManagement: React.FC = () => {
       bloodGroup: 'B+',
       className: dbClasses[0]?.name || '10',
       section: 'A',
+      paidLeaveQuota: 18,
     });
     setShowModal(true);
   };
@@ -192,7 +196,8 @@ const TeacherManagement: React.FC = () => {
     setCurrentTeacher(teacher);
     setFormData({
       ...teacher,
-      address: teacher.address || { street: '', city: 'New Delhi', state: 'Delhi', zip: '110001' }
+      address: teacher.address || { street: '', city: 'New Delhi', state: 'Delhi', zip: '110001' },
+      paidLeaveQuota: teacher.paidLeaveQuota ?? 18
     });
     setShowModal(true);
   };
@@ -234,7 +239,8 @@ const TeacherManagement: React.FC = () => {
         previousDesignation: formData.previousDesignation,
         areasOfExpertise: formData.areasOfExpertise,
         emergencyContact: formData.emergencyContact,
-        address: formData.address
+        address: formData.address,
+        paidLeaveQuota: Number(formData.paidLeaveQuota) || 18
       });
     } else {
       addEmployee({
@@ -262,6 +268,7 @@ const TeacherManagement: React.FC = () => {
         section: formData.section,
         emergencyContact: formData.emergencyContact,
         address: formData.address,
+        paidLeaveQuota: Number(formData.paidLeaveQuota) || 18,
         leaveBalance: {
           casual: { total: 12, taken: 0 },
           sick: { total: 10, taken: 0 },
@@ -371,6 +378,7 @@ const TeacherManagement: React.FC = () => {
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Subject</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Class & Sec</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Experience</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Leave Quota</th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Phone</th>
                 <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
@@ -399,6 +407,11 @@ const TeacherManagement: React.FC = () => {
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
+                    <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 text-xs font-semibold">
+                      {teacher.paidLeaveQuota ?? 18} Days
+                    </span>
                   </td>
                   <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
                     {teacher.phone}
@@ -755,6 +768,20 @@ const TeacherManagement: React.FC = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Annual Paid Leave Quota (Days)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={formData.paidLeaveQuota ?? 18}
+                    onChange={(e) => setFormData({ ...formData, paidLeaveQuota: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                  />
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Areas of Expertise & Key Specialization
@@ -908,6 +935,7 @@ const TeacherManagement: React.FC = () => {
                 <TeacherDetail label="Subject Specialization">{currentTeacher.subject}</TeacherDetail>
                 <TeacherDetail label="Qualifications">{currentTeacher.qualification}</TeacherDetail>
                 <TeacherDetail label="Joining Date">{currentTeacher.joiningDate}</TeacherDetail>
+                <TeacherDetail label="Annual Leave Quota">{currentTeacher.paidLeaveQuota ?? 18} Days / Year</TeacherDetail>
                 <TeacherDetail label="Total Experience">{currentTeacher.experienceYears} Years {currentTeacher.experienceMonths} Months</TeacherDetail>
                 <TeacherDetail label="Previous Institution">{currentTeacher.previousSchool || 'N/A'}</TeacherDetail>
                 <TeacherDetail label="Previous Role">{currentTeacher.previousDesignation || 'N/A'}</TeacherDetail>
