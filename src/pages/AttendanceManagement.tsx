@@ -217,39 +217,51 @@ export const AttendanceManagement: React.FC = () => {
   // Staff Roster for Selected Date
   const staffRoster = useMemo(() => {
     return employees.map(emp => {
+      const hasApprovedLeave = leaves.some(
+        l => (l.employeeId === emp.id || l.employeeId === emp.code || l.employeeId === emp.employeeId) &&
+             l.status === 'approved' &&
+             l.startDate <= selectedDate &&
+             l.endDate >= selectedDate
+      );
       const record = staffAttendance.find(
         a => a.employeeId === emp.id && a.date === selectedDate
       );
+      const empName = emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Staff';
+      const empCode = emp.code || emp.employeeId || '';
+      const defaultStatus = hasApprovedLeave ? 'On Leave' : 'Present';
+
       return {
         employee: emp,
         attendance: record || {
           id: `virtual-stf-${emp.id}`,
           employeeId: emp.id,
-          employeeName: `${emp.firstName} ${emp.lastName}`,
-          employeeCode: emp.employeeId,
+          employeeName: empName,
+          employeeCode: empCode,
           role: emp.role,
           department: emp.department,
           designation: emp.designation,
           date: selectedDate,
-          status: 'Present' as const,
+          status: defaultStatus as const,
           checkInTime: '08:00 AM',
           checkOutTime: '03:30 PM',
-          markedBy: 'Admin',
+          markedBy: hasApprovedLeave ? 'Leave Management' : 'Admin',
           markedAt: '08:00 AM',
           remarks: ''
         }
       };
     });
-  }, [employees, staffAttendance, selectedDate]);
+  }, [employees, staffAttendance, leaves, selectedDate]);
 
   // Filtered Staff Roster
   const filteredStaffRoster = useMemo(() => {
     return staffRoster.filter(item => {
       const q = staffSearchQuery.toLowerCase();
+      const empName = (item.employee.name || `${item.employee.firstName || ''} ${item.employee.lastName || ''}`).trim();
+      const empCode = item.employee.code || item.employee.employeeId || '';
+
       const matchSearch =
-        (item.employee.firstName || '').toLowerCase().includes(q) ||
-        (item.employee.lastName || '').toLowerCase().includes(q) ||
-        (item.employee.employeeId || '').toLowerCase().includes(q) ||
+        empName.toLowerCase().includes(q) ||
+        empCode.toLowerCase().includes(q) ||
         (item.employee.department || '').toLowerCase().includes(q) ||
         (item.employee.designation || '').toLowerCase().includes(q);
 
@@ -278,6 +290,7 @@ export const AttendanceManagement: React.FC = () => {
   // Quick Staff Status Setter
   const handleQuickStaffStatus = (empId: string, status: 'Present' | 'Absent') => {
     const emp = employees.find(e => e.id === empId);
+    const empName = emp?.name || `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() || 'Staff';
     markStaffAttendance(
       empId,
       selectedDate,
@@ -286,7 +299,7 @@ export const AttendanceManagement: React.FC = () => {
       status === 'Present' ? '03:30 PM' : undefined,
       'Status updated by Admin'
     );
-    showToast(`Attendance updated to "${status}" for ${emp?.firstName} ${emp?.lastName}`);
+    showToast(`Attendance updated to "${status}" for ${empName}`);
   };
 
   // Bulk Mark Staff
@@ -300,15 +313,19 @@ export const AttendanceManagement: React.FC = () => {
 
   // Export Staff CSV
   const handleExportStaffCSV = () => {
-    const headers = ['Staff Name', 'Employee ID', 'Role', 'Department', 'Date', 'Status'];
-    const rows = filteredStaffRoster.map(r => [
-      `"${r.employee.firstName} ${r.employee.lastName}"`,
-      r.employee.employeeId || '',
-      r.employee.role || '',
-      r.employee.department || '',
-      selectedDate,
-      r.attendance.status
-    ]);
+    const headers = ['Staff Name', 'Employee Code', 'Role', 'Department', 'Date', 'Status'];
+    const rows = filteredStaffRoster.map(r => {
+      const empName = r.employee.name || `${r.employee.firstName || ''} ${r.employee.lastName || ''}`.trim() || r.attendance.employeeName || 'Staff';
+      const empCode = r.employee.code || r.employee.employeeId || r.attendance.employeeCode || '';
+      return [
+        `"${empName}"`,
+        empCode,
+        r.employee.role || '',
+        r.employee.department || '',
+        selectedDate,
+        r.attendance.status
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -728,7 +745,7 @@ export const AttendanceManagement: React.FC = () => {
                         >
                           {/* Staff Name */}
                           <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                            {employee.firstName} {employee.lastName}
+                            {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || attendance.employeeName || 'Staff Member'}
                           </td>
 
                           {/* Department */}
