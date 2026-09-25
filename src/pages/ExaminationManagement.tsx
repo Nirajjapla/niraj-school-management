@@ -13,11 +13,53 @@ import {
   BookOpen,
   Users,
   CheckCircle2,
-  Layers,
-  Sparkles
+  Sparkles,
+  PlusCircle,
+  GraduationCap
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
-import { ExamSchedule, ExamResultRecord } from '../services/centralData';
+import { ExamSchedule } from '../services/centralData';
+
+interface FormSubjectSlot {
+  id?: string;
+  subject_id: string;
+  exam_date: string;
+  start_time: string;
+  end_time: string;
+  max_marks: string;
+  passing_marks: string;
+  room_number: string;
+}
+
+interface ExamGroup {
+  key: string;
+  name: string;
+  classId: string;
+  className: string;
+  section: string;
+  slots: ExamSchedule[];
+  slotCount: number;
+  startDate: string;
+  endDate: string;
+  dateRangeStr: string;
+  status: 'scheduled' | 'ongoing' | 'completed';
+}
+
+function formatDateDisplay(dateStr?: string): string {
+  if (!dateStr) return '—';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mIdx = parseInt(month, 10) - 1;
+    if (mIdx >= 0 && mIdx < 12) {
+      return `${parseInt(day, 10)} ${months[mIdx]} ${year}`;
+    }
+  }
+  return dateStr;
+}
 
 export const ExaminationManagement: React.FC = () => {
   const {
@@ -33,6 +75,7 @@ export const ExaminationManagement: React.FC = () => {
     students
   } = useData();
 
+  // Navigation Tabs: 'exams' | 'results'
   const [activeTab, setActiveTab] = useState<'exams' | 'results'>('exams');
 
   // Filters State
@@ -40,8 +83,7 @@ export const ExaminationManagement: React.FC = () => {
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
   const [selectedSectionFilter, setSelectedSectionFilter] = useState('all');
   const [selectedSeriesFilter, setSelectedSeriesFilter] = useState('all');
-  const [selectedDateFilter, setSelectedDateFilter] = useState('all');
-  const [selectedExamResultFilterId, setSelectedExamResultFilterId] = useState<string>('');
+  const [selectedResultSlotFilterId, setSelectedResultSlotFilterId] = useState<string>('');
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -50,22 +92,20 @@ export const ExaminationManagement: React.FC = () => {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Exam Form Modal State
+  // View Schedule Modal State
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingGroup, setViewingGroup] = useState<ExamGroup | null>(null);
+
+  // Multi-Subject Create / Edit Modal State
   const [showExamModal, setShowExamModal] = useState(false);
-  const [editingExam, setEditingExam] = useState<ExamSchedule | null>(null);
-  const [examForm, setExamForm] = useState({
-    name: '',
+  const [editingGroupKey, setEditingGroupKey] = useState<string | null>(null);
+  const [examFormHeader, setExamFormHeader] = useState({
+    name: 'Mid-Term Examination 2026',
     class_id: classes[0]?.id || '',
-    section: 'All',
-    subject_id: subjects[0]?.id || '',
-    exam_date: new Date().toISOString().split('T')[0],
-    start_time: '09:00 AM',
-    end_time: '11:30 AM',
-    max_marks: '100',
-    passing_marks: '35',
-    room_number: 'Exam Hall A',
+    section: 'A',
     status: 'scheduled' as 'scheduled' | 'ongoing' | 'completed'
   });
+  const [formSlots, setFormSlots] = useState<FormSubjectSlot[]>([]);
 
   // Marks Recording Modal State
   const [showMarksModal, setShowMarksModal] = useState(false);
@@ -79,24 +119,74 @@ export const ExaminationManagement: React.FC = () => {
   const [showReportCardModal, setShowReportCardModal] = useState(false);
   const [reportCardData, setReportCardData] = useState<any | null>(null);
 
-  // Available unique exam series/titles
-  const availableSeries = useMemo(() => {
-    const set = new Set<string>();
-    exams.forEach(e => {
-      if (e.name) set.add(e.name);
+  // Grouped Exam Schedules for Class & Section Table View
+  const examGroups = useMemo<ExamGroup[]>(() => {
+    const map = new Map<string, ExamSchedule[]>();
+
+    exams.forEach(slot => {
+      const key = `${slot.name || 'Examination'}_${slot.classId || slot.className}_${slot.section || 'All'}`;
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(slot);
     });
-    return Array.from(set).sort();
+
+    const groups: ExamGroup[] = [];
+    map.forEach((slots, key) => {
+      // Sort slots chronologically
+      slots.sort((a, b) => {
+        const dateA = a.examDate || a.startDate || '';
+        const dateB = b.examDate || b.startDate || '';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      });
+
+      const first = slots[0];
+      const dates = slots.map(s => s.examDate || s.startDate || '').filter(Boolean).sort();
+      const startDate = dates[0] || '';
+      const endDate = dates[dates.length - 1] || startDate;
+
+      let dateRangeStr = '—';
+      if (startDate && endDate) {
+        dateRangeStr = startDate === endDate
+          ? formatDateDisplay(startDate)
+          : `${formatDateDisplay(startDate)} – ${formatDateDisplay(endDate)}`;
+      }
+
+      // Group status
+      let status: 'scheduled' | 'ongoing' | 'completed' = 'scheduled';
+      if (slots.some(s => s.status === 'ongoing')) status = 'ongoing';
+      else if (slots.every(s => s.status === 'completed')) status = 'completed';
+
+      groups.push({
+        key,
+        name: first.name,
+        classId: first.classId,
+        className: first.className,
+        section: first.section || 'All',
+        slots,
+        slotCount: slots.length,
+        startDate,
+        endDate,
+        dateRangeStr,
+        status
+      });
+    });
+
+    return groups.sort((a, b) => {
+      if (a.className !== b.className) return a.className.localeCompare(b.className);
+      return a.name.localeCompare(b.name);
+    });
   }, [exams]);
 
-  // Available unique dates
-  const availableDates = useMemo(() => {
+  // Available unique exam series/titles for filters
+  const availableSeries = useMemo(() => {
     const set = new Set<string>();
-    exams.forEach(e => {
-      const d = e.examDate || e.startDate;
-      if (d) set.add(d);
+    examGroups.forEach(g => {
+      if (g.name) set.add(g.name);
     });
     return Array.from(set).sort();
-  }, [exams]);
+  }, [examGroups]);
 
   // Available sections for the selected filter class
   const availableFilterSections = useMemo(() => {
@@ -111,120 +201,244 @@ export const ExaminationManagement: React.FC = () => {
 
   // Available sections for modal class
   const availableModalSections = useMemo(() => {
-    const cls = classes.find(c => c.id === examForm.class_id);
+    const cls = classes.find(c => c.id === examFormHeader.class_id);
     return cls ? cls.sections.map(s => s.name) : [];
-  }, [classes, examForm.class_id]);
+  }, [classes, examFormHeader.class_id]);
 
   // Available subjects for modal class
   const availableModalSubjects = useMemo(() => {
-    const cls = classes.find(c => c.id === examForm.class_id);
+    const cls = classes.find(c => c.id === examFormHeader.class_id);
     if (!cls) return subjects;
     const clsSubjects = subjects.filter(s => s.classId === cls.id || s.className === cls.name);
     return clsSubjects.length > 0 ? clsSubjects : subjects;
-  }, [classes, subjects, examForm.class_id]);
+  }, [classes, subjects, examFormHeader.class_id]);
 
-  // Open modal for Creating Exam
+  // Filtered Exam Groups for the Main Table
+  const filteredExamGroups = useMemo(() => {
+    return examGroups.filter(g => {
+      const q = searchTerm.toLowerCase();
+      const matchSearch =
+        (g.name || '').toLowerCase().includes(q) ||
+        (g.className || '').toLowerCase().includes(q) ||
+        (g.section || '').toLowerCase().includes(q) ||
+        g.slots.some(s => (s.subjectName || '').toLowerCase().includes(q) || (s.subjectCode || '').toLowerCase().includes(q));
+
+      const matchClass =
+        selectedClassFilter === 'all' ||
+        g.classId === selectedClassFilter ||
+        (g.className || '').toLowerCase() === selectedClassFilter.toLowerCase();
+
+      const matchSection =
+        selectedSectionFilter === 'all' ||
+        (g.section || '').toLowerCase() === selectedSectionFilter.toLowerCase() ||
+        g.section === 'All';
+
+      const matchSeries =
+        selectedSeriesFilter === 'all' || g.name === selectedSeriesFilter;
+
+      return matchSearch && matchClass && matchSection && matchSeries;
+    });
+  }, [examGroups, searchTerm, selectedClassFilter, selectedSectionFilter, selectedSeriesFilter]);
+
+  // Open "View Details" Schedule Modal
+  const handleOpenViewModal = (group: ExamGroup) => {
+    setViewingGroup(group);
+    setShowViewModal(true);
+  };
+
+  // Open modal for Creating Exam Schedule (Multi-Subject)
   const handleOpenCreateExamModal = () => {
-    setEditingExam(null);
+    setEditingGroupKey(null);
     const defaultClass = classes[0] || { id: 'c-10', name: '10' };
     const classSubjects = subjects.filter(s => s.classId === defaultClass.id || s.className === defaultClass.name);
-    const defaultSubject = classSubjects[0] || subjects[0] || { id: 'sub-1', name: 'Mathematics' };
+    const sub1 = classSubjects[0] || subjects[0] || { id: 'sub-1', name: 'Mathematics' };
+    const sub2 = classSubjects[1] || subjects[1] || { id: 'sub-2', name: 'Physics' };
 
-    setExamForm({
+    setExamFormHeader({
       name: availableSeries[0] || 'Mid-Term Examination 2026',
       class_id: defaultClass.id,
       section: 'A',
-      subject_id: defaultSubject.id,
-      exam_date: '2026-09-25',
-      start_time: '09:00 AM',
-      end_time: '11:30 AM',
-      max_marks: '100',
-      passing_marks: '35',
-      room_number: 'Exam Hall A',
       status: 'scheduled'
     });
+
+    // Provide initial 2 subject slots for quick convenience
+    setFormSlots([
+      {
+        subject_id: sub1.id,
+        exam_date: '2026-09-25',
+        start_time: '09:00 AM',
+        end_time: '11:30 AM',
+        max_marks: '100',
+        passing_marks: '35',
+        room_number: 'Exam Hall A'
+      },
+      {
+        subject_id: sub2.id,
+        exam_date: '2026-09-26',
+        start_time: '09:00 AM',
+        end_time: '12:00 PM',
+        max_marks: '100',
+        passing_marks: '35',
+        room_number: 'Exam Hall A'
+      }
+    ]);
+
     setShowExamModal(true);
   };
 
-  // Open modal for Editing Exam
-  const handleOpenEditExamModal = (exam: ExamSchedule) => {
-    setEditingExam(exam);
-    setExamForm({
-      name: exam.name,
-      class_id: exam.classId,
-      section: exam.section || 'All',
-      subject_id: exam.subjectId || subjects[0]?.id || '',
-      exam_date: exam.examDate || exam.startDate || '',
-      start_time: exam.startTime || '09:00 AM',
-      end_time: exam.endTime || '11:30 AM',
-      max_marks: String(exam.maxMarks ?? 100),
-      passing_marks: String(exam.passingMarks ?? 35),
-      room_number: exam.roomNumber || '',
-      status: exam.status
+  // Open modal for Editing Exam Schedule (Multi-Subject)
+  const handleOpenEditExamModal = (group: ExamGroup) => {
+    setEditingGroupKey(group.key);
+    setExamFormHeader({
+      name: group.name,
+      class_id: group.classId,
+      section: group.section || 'All',
+      status: group.status
     });
+
+    setFormSlots(
+      group.slots.map(s => ({
+        id: s.id,
+        subject_id: s.subjectId || subjects[0]?.id || '',
+        exam_date: s.examDate || s.startDate || '',
+        start_time: s.startTime || '09:00 AM',
+        end_time: s.endTime || '11:30 AM',
+        max_marks: String(s.maxMarks ?? 100),
+        passing_marks: String(s.passingMarks ?? 35),
+        room_number: s.roomNumber || ''
+      }))
+    );
+
     setShowExamModal(true);
   };
 
-  // Save Exam (Create / Update)
-  const handleSaveExam = (e: React.FormEvent) => {
+  // Add a new Subject Slot Row in the Modal
+  const handleAddSubjectSlot = () => {
+    const lastSlot = formSlots[formSlots.length - 1];
+    const unusedSubject = availableModalSubjects.find(
+      s => !formSlots.some(slot => slot.subject_id === s.id)
+    );
+    const subToPick = unusedSubject || availableModalSubjects[0] || subjects[0];
+
+    setFormSlots([
+      ...formSlots,
+      {
+        subject_id: subToPick?.id || '',
+        exam_date: lastSlot?.exam_date || '2026-09-27',
+        start_time: '09:00 AM',
+        end_time: '11:30 AM',
+        max_marks: '100',
+        passing_marks: '35',
+        room_number: lastSlot?.room_number || 'Exam Hall A'
+      }
+    ]);
+  };
+
+  // Remove a Subject Slot Row
+  const handleRemoveSubjectSlot = (index: number) => {
+    if (formSlots.length === 1) {
+      alert('An examination schedule must include at least one subject paper.');
+      return;
+    }
+    setFormSlots(formSlots.filter((_, idx) => idx !== index));
+  };
+
+  // Update a field in a specific Subject Slot
+  const handleSlotChange = (index: number, field: keyof FormSubjectSlot, value: string) => {
+    const updated = [...formSlots];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormSlots(updated);
+  };
+
+  // Save the entire Multi-Subject Exam Schedule
+  const handleSaveMultiSubjectExam = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!examForm.name || !examForm.class_id || !examForm.subject_id || !examForm.exam_date) {
-      alert('Please fill in Exam Name, Class, Subject, and Exam Date.');
+    if (!examFormHeader.name.trim() || !examFormHeader.class_id) {
+      alert('Please provide an Examination Name and Target Class.');
       return;
     }
 
-    const cls = classes.find(c => c.id === examForm.class_id);
-    const className = cls ? cls.name : '10';
-    const sub = subjects.find(s => s.id === examForm.subject_id);
-    const subjectName = sub ? sub.name : 'Subject';
-    const subjectCode = sub ? sub.code : '';
-
-    const startTime = examForm.start_time.trim() || '09:00 AM';
-    const endTime = examForm.end_time.trim() || '11:30 AM';
-    const timeRange = `${startTime} - ${endTime}`;
-
-    const payload: Omit<ExamSchedule, 'id'> = {
-      name: examForm.name.trim(),
-      academicYear: '2026-2027',
-      classId: examForm.class_id,
-      className,
-      section: examForm.section || 'All',
-      subjectId: examForm.subject_id,
-      subjectName,
-      subjectCode,
-      examDate: examForm.exam_date,
-      startTime,
-      endTime,
-      timeRange,
-      maxMarks: Number(examForm.max_marks) || 100,
-      passingMarks: Number(examForm.passing_marks) || 35,
-      roomNumber: examForm.room_number.trim(),
-      status: examForm.status,
-      startDate: examForm.exam_date,
-      endDate: examForm.exam_date
-    };
-
-    if (editingExam) {
-      updateExam(editingExam.id, payload);
-      showToast(`Updated examination slot: ${subjectName} (${className}-${examForm.section})`);
-    } else {
-      addExam(payload);
-      showToast(`Scheduled new exam: ${subjectName} (${className}-${examForm.section}) on ${examForm.exam_date}`);
+    if (formSlots.length === 0) {
+      alert('Please add at least one subject schedule slot.');
+      return;
     }
 
+    // Validate slot rows
+    for (let i = 0; i < formSlots.length; i++) {
+      const slot = formSlots[i];
+      if (!slot.subject_id || !slot.exam_date || !slot.start_time || !slot.end_time) {
+        alert(`Please complete the Subject, Date, and Time Range for slot #${i + 1}.`);
+        return;
+      }
+    }
+
+    const cls = classes.find(c => c.id === examFormHeader.class_id);
+    const className = cls ? cls.name : '10';
+
+    if (editingGroupKey) {
+      // Find old group
+      const oldGroup = examGroups.find(g => g.key === editingGroupKey);
+      if (oldGroup) {
+        // Delete old slots that are no longer present
+        const currentSlotIds = new Set(formSlots.map(s => s.id).filter(Boolean));
+        oldGroup.slots.forEach(s => {
+          if (!currentSlotIds.has(s.id)) {
+            deleteExam(s.id);
+          }
+        });
+      }
+    }
+
+    // Save/Update each slot
+    formSlots.forEach(slot => {
+      const sub = subjects.find(s => s.id === slot.subject_id);
+      const subjectName = sub ? sub.name : 'Subject';
+      const subjectCode = sub ? sub.code : '';
+      const startTime = slot.start_time.trim() || '09:00 AM';
+      const endTime = slot.end_time.trim() || '11:30 AM';
+      const timeRange = `${startTime} - ${endTime}`;
+
+      const payload: Omit<ExamSchedule, 'id'> = {
+        name: examFormHeader.name.trim(),
+        academicYear: '2026-2027',
+        classId: examFormHeader.class_id,
+        className,
+        section: examFormHeader.section || 'All',
+        subjectId: slot.subject_id,
+        subjectName,
+        subjectCode,
+        examDate: slot.exam_date,
+        startTime,
+        endTime,
+        timeRange,
+        maxMarks: Number(slot.max_marks) || 100,
+        passingMarks: Number(slot.passing_marks) || 35,
+        roomNumber: slot.room_number.trim(),
+        status: examFormHeader.status,
+        startDate: slot.exam_date,
+        endDate: slot.exam_date
+      };
+
+      if (slot.id && editingGroupKey) {
+        updateExam(slot.id, payload);
+      } else {
+        addExam(payload);
+      }
+    });
+
+    showToast(`Successfully saved schedule for Class ${className}-${examFormHeader.section} (${formSlots.length} subjects).`);
     setShowExamModal(false);
   };
 
-  // Delete Exam
-  const handleDeleteExam = (examId: string) => {
-    const ex = exams.find(e => e.id === examId);
-    if (window.confirm(`Are you sure you want to delete "${ex?.subjectName || ex?.name}" exam schedule?`)) {
-      deleteExam(examId);
-      showToast(`Exam deleted successfully.`);
+  // Delete all slots in an Exam Group
+  const handleDeleteGroup = (group: ExamGroup) => {
+    if (window.confirm(`Are you sure you want to delete the schedule for "${group.name} - Class ${group.className} (${group.section})"? All ${group.slotCount} subject papers will be removed.`)) {
+      group.slots.forEach(s => deleteExam(s.id));
+      showToast(`Deleted examination schedule.`);
     }
   };
 
-  // Open Marks Recording Modal for a specific slot or general
+  // Open Marks Recording Modal for a specific slot
   const handleOpenMarksModal = (slot?: ExamSchedule) => {
     if (exams.length === 0) {
       alert('Please schedule an examination first before recording marks.');
@@ -366,62 +580,12 @@ export const ExaminationManagement: React.FC = () => {
     setShowReportCardModal(true);
   };
 
-  // Filtered & Chronologically Sorted Exams Schedule
-  const filteredExams = useMemo(() => {
-    return exams
-      .filter(exam => {
-        const q = searchTerm.toLowerCase();
-        const matchSearch =
-          (exam.name || '').toLowerCase().includes(q) ||
-          (exam.subjectName || '').toLowerCase().includes(q) ||
-          (exam.subjectCode || '').toLowerCase().includes(q) ||
-          (exam.className || '').toLowerCase().includes(q) ||
-          (exam.section || '').toLowerCase().includes(q) ||
-          (exam.roomNumber || '').toLowerCase().includes(q);
-
-        const matchClass =
-          selectedClassFilter === 'all' ||
-          exam.classId === selectedClassFilter ||
-          (exam.className || '').toLowerCase() === selectedClassFilter.toLowerCase();
-
-        const matchSection =
-          selectedSectionFilter === 'all' ||
-          (exam.section || '').toLowerCase() === selectedSectionFilter.toLowerCase() ||
-          exam.section === 'All';
-
-        const matchSeries =
-          selectedSeriesFilter === 'all' || exam.name === selectedSeriesFilter;
-
-        const matchDate =
-          selectedDateFilter === 'all' ||
-          (exam.examDate || exam.startDate) === selectedDateFilter;
-
-        return matchSearch && matchClass && matchSection && matchSeries && matchDate;
-      })
-      .sort((a, b) => {
-        const dateA = a.examDate || a.startDate || '';
-        const dateB = b.examDate || b.startDate || '';
-        if (dateA !== dateB) return dateA.localeCompare(dateB);
-        return (a.startTime || '').localeCompare(b.startTime || '');
-      });
-  }, [exams, searchTerm, selectedClassFilter, selectedSectionFilter, selectedSeriesFilter, selectedDateFilter]);
-
-  // Detection of dates with multiple exams for the same class/section
-  const multiExamDatesCount = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredExams.forEach(e => {
-      const key = `${e.examDate || e.startDate}_${e.className}_${e.section || 'All'}`;
-      counts[key] = (counts[key] || 0) + 1;
-    });
-    return Object.values(counts).filter(c => c > 1).length;
-  }, [filteredExams]);
-
   // Filtered Results
   const displayedResults = useMemo(() => {
-    return selectedExamResultFilterId
-      ? examResults.filter(r => r.examId === selectedExamResultFilterId)
+    return selectedResultSlotFilterId
+      ? examResults.filter(r => r.examId === selectedResultSlotFilterId)
       : examResults;
-  }, [examResults, selectedExamResultFilterId]);
+  }, [examResults, selectedResultSlotFilterId]);
 
   const filteredResults = useMemo(() => {
     return displayedResults.filter(result => {
@@ -449,9 +613,9 @@ export const ExaminationManagement: React.FC = () => {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Examination & Results</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Examination Management</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-            Define granular subject exam timetables with time ranges, class & section flexibility, and manage student scorecards
+            Schedule class & section exam timetables with multi-subject flexibility and manage student scorecards
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -461,7 +625,7 @@ export const ExaminationManagement: React.FC = () => {
               className="flex items-center space-x-2 bg-[#4e74f9] hover:bg-[#3b5ccc] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-md shadow-blue-500/20"
             >
               <Plus className="w-4 h-4" />
-              <span>Schedule Exam Slot</span>
+              <span>Create Exam Schedule</span>
             </button>
           ) : (
             <button
@@ -475,61 +639,63 @@ export const ExaminationManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Uniform Tab Navigation Pills */}
-      <div className="bg-gray-100 dark:bg-slate-800/60 p-1 rounded-xl flex gap-1 w-fit border border-gray-200/50 dark:border-slate-700/50">
-        <button
-          onClick={() => setActiveTab('exams')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'exams'
-              ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm font-semibold'
-              : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Examinations Schedule</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-            activeTab === 'exams'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
-              : 'bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-slate-300'
-          }`}>
-            {exams.length}
-          </span>
-        </button>
+      {/* Common Structure Navigation Pillar Tabs */}
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-px">
+          <button
+            onClick={() => setActiveTab('exams')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'exams'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Examinations Schedule</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'exams'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {examGroups.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('results')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'results'
-              ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm font-semibold'
-              : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
-          }`}
-        >
-          <Award className="w-3.5 h-3.5" />
-          <span>Results & Marks</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-            activeTab === 'results'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
-              : 'bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-slate-300'
-          }`}>
-            {examResults.length}
-          </span>
-        </button>
+          <button
+            onClick={() => setActiveTab('results')}
+            className={`flex items-center gap-2.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'results'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-t-lg'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:border-gray-300 dark:hover:border-slate-700'
+            }`}
+          >
+            <Award className="w-4 h-4" />
+            <span>Results & Marks</span>
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+              activeTab === 'results'
+                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
+            }`}>
+              {examResults.length}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* TAB 1: GRANULAR EXAMINATIONS SCHEDULE */}
+      {/* TAB 1: EXAMINATIONS SCHEDULE (CLEAN TABLE + VIEW DETAILS MODAL) */}
       {/* ========================================================================= */}
       {activeTab === 'exams' && (
         <div className="space-y-6">
-          {/* Filter Toolbar */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex flex-1 flex-wrap items-center gap-3">
-              {/* Search */}
-              <div className="relative flex-1 min-w-[220px]">
+          {/* Action / Search Toolbar */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
+              {/* Search Input */}
+              <div className="relative flex-1 w-full sm:w-auto">
                 <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search by subject, series, code, class, room..."
+                  placeholder="Search exam series, class, section, subject..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -543,7 +709,7 @@ export const ExaminationManagement: React.FC = () => {
                   setSelectedClassFilter(e.target.value);
                   setSelectedSectionFilter('all');
                 }}
-                className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full sm:w-auto px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[140px]"
               >
                 <option value="all">All Classes</option>
                 {classes.map(c => (
@@ -555,7 +721,7 @@ export const ExaminationManagement: React.FC = () => {
               <select
                 value={selectedSectionFilter}
                 onChange={(e) => setSelectedSectionFilter(e.target.value)}
-                className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full sm:w-auto px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[130px]"
               >
                 <option value="all">All Sections</option>
                 {availableFilterSections.map(sec => (
@@ -567,161 +733,118 @@ export const ExaminationManagement: React.FC = () => {
               <select
                 value={selectedSeriesFilter}
                 onChange={(e) => setSelectedSeriesFilter(e.target.value)}
-                className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full sm:w-auto px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[170px]"
               >
                 <option value="all">All Exam Series</option>
                 {availableSeries.map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-
-              {/* Date Filter */}
-              <select
-                value={selectedDateFilter}
-                onChange={(e) => setSelectedDateFilter(e.target.value)}
-                className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="all">All Exam Dates</option>
-                {availableDates.map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
             </div>
-
-            {multiExamDatesCount > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-semibold whitespace-nowrap">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Multi-exam days active</span>
-              </div>
-            )}
           </div>
 
-          {/* Granular Examinations Table */}
+          {/* Clean Examinations Table */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Subject & Exam Series</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Exam Series</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Class & Section</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Exam Date</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Time Range</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Max Marks</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Room / Hall</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Schedule Period</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Subject Papers</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
                     <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {filteredExams.map((exam) => {
-                    const examDateStr = exam.examDate || exam.startDate || '—';
-                    const timeRangeStr = exam.timeRange || (exam.startTime && exam.endTime ? `${exam.startTime} - ${exam.endTime}` : '09:00 AM - 11:30 AM');
+                  {filteredExamGroups.map((group) => (
+                    <tr key={group.key} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                      {/* Exam Series Name */}
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white block">
+                          {group.name}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-slate-400">
+                          Academic Year 2026-2027
+                        </span>
+                      </td>
 
-                    return (
-                      <tr key={exam.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                        {/* Subject & Exam Series */}
-                        <td className="px-5 py-4">
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                {exam.subjectName || exam.name}
-                              </span>
-                              {exam.subjectCode && (
-                                <span className="px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 rounded text-xs font-mono font-medium">
-                                  {exam.subjectCode}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                              {exam.name}
-                            </span>
-                          </div>
-                        </td>
+                      {/* Class & Section */}
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-medium">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-xs font-semibold">
+                          Class {group.className} {group.section && group.section !== 'All' ? `• Sec ${group.section}` : '(All)'}
+                        </span>
+                      </td>
 
-                        {/* Class & Section */}
-                        <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-medium">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-xs font-semibold">
-                            Class {exam.className} {exam.section && exam.section !== 'All' ? `• Sec ${exam.section}` : '(All)'}
-                          </span>
-                        </td>
+                      {/* Schedule Period / Date Range */}
+                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                          <span>{group.dateRangeStr}</span>
+                        </div>
+                      </td>
 
-                        {/* Exam Date */}
-                        <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            <span>{examDateStr}</span>
-                          </div>
-                        </td>
+                      {/* Subject Papers Count */}
+                      <td className="px-5 py-4 text-center">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300">
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>{group.slotCount} {group.slotCount === 1 ? 'Paper' : 'Papers'}</span>
+                        </span>
+                      </td>
 
-                        {/* Time Range */}
-                        <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                            <span className="font-semibold text-gray-800 dark:text-slate-200">{timeRangeStr}</span>
-                          </div>
-                        </td>
+                      {/* Status */}
+                      <td className="px-5 py-4 text-sm font-normal whitespace-nowrap">
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${
+                          group.status === 'completed'
+                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                            : group.status === 'ongoing'
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                            : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                        }`}>
+                          {group.status}
+                        </span>
+                      </td>
 
-                        {/* Max Marks */}
-                        <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                          <span className="font-semibold text-gray-900 dark:text-white">{exam.maxMarks ?? 100}</span>
-                          {exam.passingMarks !== undefined && (
-                            <span className="text-xs text-gray-500 dark:text-slate-400 block">Min: {exam.passingMarks}</span>
-                          )}
-                        </td>
+                      {/* Actions */}
+                      <td className="px-5 py-4 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenViewModal(group)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-blue-950/50 text-gray-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 transition flex items-center gap-1.5 shadow-sm"
+                            title="View granular subject timetable"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                            <span>View Details</span>
+                          </button>
 
-                        {/* Room / Hall */}
-                        <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                          {exam.roomNumber || '—'}
-                        </td>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditExamModal(group)}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition"
+                            title="Edit Exam Schedule"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
 
-                        {/* Status */}
-                        <td className="px-5 py-4 text-sm font-normal whitespace-nowrap">
-                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${
-                            exam.status === 'completed'
-                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                              : exam.status === 'ongoing'
-                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                              : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
-                          }`}>
-                            {exam.status}
-                          </span>
-                        </td>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteGroup(group)}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition"
+                            title="Delete Schedule"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
 
-                        {/* Actions */}
-                        <td className="px-5 py-4 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => handleOpenMarksModal(exam)}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition flex items-center gap-1"
-                              title="Record marks for this slot"
-                            >
-                              <Award className="w-3.5 h-3.5" />
-                              <span>Marks</span>
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditExamModal(exam)}
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition"
-                              title="Edit Exam"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteExam(exam.id)}
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition"
-                              title="Delete Exam"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {filteredExams.length === 0 && (
+                  {filteredExamGroups.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="text-center py-12 text-gray-500 dark:text-slate-400">
-                        No examinations match the selected filters. Click "Schedule Exam Slot" to add an exam.
+                      <td colSpan={6} className="text-center py-12 text-gray-500 dark:text-slate-400">
+                        No examination schedules found. Click "Create Exam Schedule" to define subject timetables.
                       </td>
                     </tr>
                   )}
@@ -753,8 +876,8 @@ export const ExaminationManagement: React.FC = () => {
             <div className="flex items-center gap-3">
               <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Slot Filter:</label>
               <select
-                value={selectedExamResultFilterId}
-                onChange={(e) => setSelectedExamResultFilterId(e.target.value)}
+                value={selectedResultSlotFilterId}
+                onChange={(e) => setSelectedResultSlotFilterId(e.target.value)}
                 className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]"
               >
                 <option value="">All Examinations & Slots</option>
@@ -841,238 +964,395 @@ export const ExaminationManagement: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* CREATE / EDIT GRANULAR EXAM MODAL */}
+      {/* MODAL 1: VIEW GRANULAR SCHEDULE DETAILS */}
+      {/* ========================================================================= */}
+      {showViewModal && viewingGroup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowViewModal(false)}
+              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="border-b border-gray-100 dark:border-slate-800 pb-4 mb-6">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {viewingGroup.name}
+                  </h2>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-xs font-semibold">
+                      Class {viewingGroup.className} • Section {viewingGroup.section}
+                    </span>
+                    <span className="text-xs text-gray-400">•</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                      {viewingGroup.slotCount} Subject Papers Scheduled
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Schedule Table */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Timetable & Paper Details
+                </h3>
+                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Supports multiple exams per day</span>
+                </span>
+              </div>
+
+              <div className="border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Subject</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Exam Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Time Range</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Max Marks</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Room</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                    {viewingGroup.slots.map((slot) => {
+                      const timeRangeStr = slot.timeRange || (slot.startTime && slot.endTime ? `${slot.startTime} - ${slot.endTime}` : '09:00 AM - 11:30 AM');
+
+                      return (
+                        <tr key={slot.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40">
+                          {/* Subject */}
+                          <td className="px-4 py-3">
+                            <span className="font-semibold text-gray-900 dark:text-white block">
+                              {slot.subjectName}
+                            </span>
+                            {slot.subjectCode && (
+                              <span className="text-xs text-gray-500 dark:text-slate-400 font-mono">
+                                {slot.subjectCode}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Date */}
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                              <span className="font-medium">{formatDateDisplay(slot.examDate || slot.startDate)}</span>
+                            </div>
+                          </td>
+
+                          {/* Time Range */}
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                              <span className="font-semibold text-gray-800 dark:text-slate-200">{timeRangeStr}</span>
+                            </div>
+                          </td>
+
+                          {/* Max Marks */}
+                          <td className="px-4 py-3 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                            {slot.maxMarks ?? 100}
+                            {slot.passingMarks !== undefined && (
+                              <span className="text-xs text-gray-400 block font-normal">Pass: {slot.passingMarks}</span>
+                            )}
+                          </td>
+
+                          {/* Room */}
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
+                            {slot.roomNumber || '—'}
+                          </td>
+
+                          {/* Quick Marks Action */}
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowViewModal(false);
+                                handleOpenMarksModal(slot);
+                              }}
+                              className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 transition"
+                            >
+                              Marks
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="mt-6 flex justify-between items-center pt-4 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowViewModal(false);
+                  handleOpenEditExamModal(viewingGroup);
+                }}
+                className="px-4 py-2 border border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit This Timetable</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-200 font-bold rounded-xl text-xs transition"
+              >
+                Close Window
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: CREATE / EDIT MULTI-SUBJECT EXAM SCHEDULE IN ONE MODAL */}
       {/* ========================================================================= */}
       {showExamModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowExamModal(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
             >
               <X className="w-5 h-5" />
             </button>
 
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-              {editingExam ? 'Edit Examination Slot' : 'Schedule New Examination Slot'}
+              {editingGroupKey ? 'Edit Examination Schedule' : 'Create Examination Schedule (Multi-Subject)'}
             </h2>
 
-            <form onSubmit={handleSaveExam} className="space-y-4">
-              {/* Exam Title / Series */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                  Examination Series / Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Mid-Term Examination 2026, Unit Assessment Test - 1"
-                  value={examForm.name}
-                  onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
-                  list="exam-series-list"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                />
-                <datalist id="exam-series-list">
-                  <option value="Mid-Term Examination 2026" />
-                  <option value="Unit Assessment Test - 1" />
-                  <option value="Periodic Assessment 2" />
-                  <option value="Pre-Board Examination 2026" />
-                  <option value="Annual Final Examination 2027" />
-                </datalist>
+            <form onSubmit={handleSaveMultiSubjectExam} className="space-y-6">
+              {/* Top Header Information: Exam Name, Class, Section, Status */}
+              <div className="bg-gray-50 dark:bg-slate-800/60 p-4 rounded-xl border border-gray-200/70 dark:border-slate-700 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Exam Series Name */}
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
+                      Exam Series Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Mid-Term Examination 2026"
+                      value={examFormHeader.name}
+                      onChange={(e) => setExamFormHeader({ ...examFormHeader, name: e.target.value })}
+                      list="exam-series-options"
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                    />
+                    <datalist id="exam-series-options">
+                      <option value="Mid-Term Examination 2026" />
+                      <option value="Unit Assessment Test - 1" />
+                      <option value="Periodic Assessment 2" />
+                      <option value="Pre-Board Examination 2026" />
+                      <option value="Annual Final Examination 2027" />
+                    </datalist>
+                  </div>
+
+                  {/* Target Class */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
+                      Target Class *
+                    </label>
+                    <select
+                      required
+                      value={examFormHeader.class_id}
+                      onChange={(e) => {
+                        const newClassId = e.target.value;
+                        const cls = classes.find(c => c.id === newClassId);
+                        setExamFormHeader({
+                          ...examFormHeader,
+                          class_id: newClassId,
+                          section: cls?.sections[0]?.name || 'A'
+                        });
+                      }}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                    >
+                      {classes.map((cls) => (
+                        <option key={cls.id} value={cls.id}>Class {cls.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Section */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
+                      Section *
+                    </label>
+                    <select
+                      required
+                      value={examFormHeader.section}
+                      onChange={(e) => setExamFormHeader({ ...examFormHeader, section: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                    >
+                      <option value="All">All Sections</option>
+                      {availableModalSections.map((sec) => (
+                        <option key={sec} value={sec}>Section {sec}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
-              {/* Class & Section (2 cols) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    Target Class *
-                  </label>
-                  <select
-                    required
-                    value={examForm.class_id}
-                    onChange={(e) => {
-                      const newClassId = e.target.value;
-                      const cls = classes.find(c => c.id === newClassId);
-                      const clsSubjects = subjects.filter(s => s.classId === newClassId || (cls && s.className === cls.name));
-                      setExamForm({
-                        ...examForm,
-                        class_id: newClassId,
-                        section: cls?.sections[0]?.name || 'A',
-                        subject_id: clsSubjects[0]?.id || subjects[0]?.id || ''
-                      });
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+              {/* Dynamic Multi-Subject Schedule List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                      Subject Papers & Timetable ({formSlots.length})
+                    </h3>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                      (Define single or multiple exams per day)
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddSubjectSlot}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-bold transition shadow-sm"
                   >
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>Class {cls.name}</option>
-                    ))}
-                  </select>
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Add Subject Paper</span>
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    Section *
-                  </label>
-                  <select
-                    required
-                    value={examForm.section}
-                    onChange={(e) => setExamForm({ ...examForm, section: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                  >
-                    <option value="All">All Sections</option>
-                    {availableModalSections.map((sec) => (
-                      <option key={sec} value={sec}>Section {sec}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                {/* Slots Rows */}
+                <div className="space-y-3">
+                  {formSlots.map((slot, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm space-y-3"
+                    >
+                      <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2">
+                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                          Paper #{idx + 1}
+                        </span>
+                        {formSlots.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubjectSlot(idx)}
+                            className="p-1 text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 rounded transition"
+                            title="Remove this paper"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
 
-              {/* Subject */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                  Subject *
-                </label>
-                <select
-                  required
-                  value={examForm.subject_id}
-                  onChange={(e) => setExamForm({ ...examForm, subject_id: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                >
-                  {availableModalSubjects.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name} {sub.code ? `(${sub.code})` : ''}
-                    </option>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+                        {/* Subject */}
+                        <div className="md:col-span-2">
+                          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">
+                            Subject *
+                          </label>
+                          <select
+                            required
+                            value={slot.subject_id}
+                            onChange={(e) => handleSlotChange(idx, 'subject_id', e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                          >
+                            {availableModalSubjects.map((sub) => (
+                              <option key={sub.id} value={sub.id}>
+                                {sub.name} {sub.code ? `(${sub.code})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Exam Date */}
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">
+                            Date *
+                          </label>
+                          <input
+                            type="date"
+                            required
+                            value={slot.exam_date}
+                            onChange={(e) => handleSlotChange(idx, 'exam_date', e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                          />
+                        </div>
+
+                        {/* Start Time */}
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">
+                            Start Time *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="09:00 AM"
+                            value={slot.start_time}
+                            onChange={(e) => handleSlotChange(idx, 'start_time', e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                          />
+                        </div>
+
+                        {/* End Time */}
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">
+                            End Time *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="11:30 AM"
+                            value={slot.end_time}
+                            onChange={(e) => handleSlotChange(idx, 'end_time', e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                          />
+                        </div>
+
+                        {/* Max Marks & Room */}
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">
+                            Marks & Room
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="Marks"
+                              value={slot.max_marks}
+                              onChange={(e) => handleSlotChange(idx, 'max_marks', e.target.value)}
+                              className="w-16 px-2 py-1.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Hall/Room"
+                              value={slot.room_number}
+                              onChange={(e) => handleSlotChange(idx, 'room_number', e.target.value)}
+                              className="flex-1 px-2 py-1.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </select>
-              </div>
-
-              {/* Date & Time Range (3 cols) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    Exam Date *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={examForm.exam_date}
-                    onChange={(e) => setExamForm({ ...examForm, exam_date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                  />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    Start Time *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 09:00 AM"
-                    value={examForm.start_time}
-                    onChange={(e) => setExamForm({ ...examForm, start_time: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                  />
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={handleAddSubjectSlot}
+                    className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 rounded-xl text-xs font-bold text-gray-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Another Subject Paper</span>
+                  </button>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    End Time *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 11:30 AM"
-                    value={examForm.end_time}
-                    onChange={(e) => setExamForm({ ...examForm, end_time: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                  />
-                </div>
-              </div>
-
-              {/* Quick Time Presets */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-xs text-gray-500 dark:text-slate-400">Quick timing presets:</span>
-                <button
-                  type="button"
-                  onClick={() => setExamForm({ ...examForm, start_time: '09:00 AM', end_time: '11:30 AM' })}
-                  className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium transition"
-                >
-                  Morning (09:00 AM - 11:30 AM)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExamForm({ ...examForm, start_time: '01:30 PM', end_time: '03:30 PM' })}
-                  className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium transition"
-                >
-                  Afternoon (01:30 PM - 03:30 PM)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExamForm({ ...examForm, start_time: '09:00 AM', end_time: '12:00 PM' })}
-                  className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium transition"
-                >
-                  3 Hours (09:00 AM - 12:00 PM)
-                </button>
-              </div>
-
-              {/* Max Marks, Passing Marks & Room No. (3 cols) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    Max Marks *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={examForm.max_marks}
-                    onChange={(e) => setExamForm({ ...examForm, max_marks: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    Passing Marks
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={examForm.passing_marks}
-                    onChange={(e) => setExamForm({ ...examForm, passing_marks: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                    Room / Hall No.
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Exam Hall A, Room 102"
-                    value={examForm.room_number}
-                    onChange={(e) => setExamForm({ ...examForm, room_number: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                  />
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300 mb-1">
-                  Status
-                </label>
-                <select
-                  value={examForm.status}
-                  onChange={(e) => setExamForm({ ...examForm, status: e.target.value as any })}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#4e74f9]"
-                >
-                  <option value="scheduled">Scheduled</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="completed">Completed</option>
-                </select>
               </div>
 
               {/* Modal Buttons */}
@@ -1088,7 +1368,7 @@ export const ExaminationManagement: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3b5ccc] text-white font-semibold rounded-xl transition text-sm shadow-md shadow-blue-500/20"
                 >
-                  {editingExam ? 'Update Slot' : 'Save & Schedule'}
+                  {editingGroupKey ? 'Save Changes' : 'Save Examination Schedule'}
                 </button>
               </div>
             </form>
@@ -1097,10 +1377,10 @@ export const ExaminationManagement: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* RECORD MARKS MODAL */}
+      {/* MODAL 3: RECORD MARKS MODAL */}
       {/* ========================================================================= */}
       {showMarksModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowMarksModal(false)}
@@ -1248,10 +1528,10 @@ export const ExaminationManagement: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* REPORT CARD MODAL */}
+      {/* MODAL 4: REPORT CARD MODAL */}
       {/* ========================================================================= */}
       {showReportCardModal && reportCardData && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowReportCardModal(false)}
