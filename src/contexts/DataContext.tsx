@@ -270,6 +270,42 @@ function loadAndMergeStaffAttendance(key: string, initialList: StaffAttendanceRe
   }
 }
 
+function loadAndMergeExams(key: string, initialList: ExamSchedule[]): ExamSchedule[] {
+  const local = localStorage.getItem(key);
+  if (!local) return initialList;
+  try {
+    const parsed: ExamSchedule[] = JSON.parse(local);
+    if (!Array.isArray(parsed)) return initialList;
+    const initialMap = new Map(initialList.map(e => [e.id, e]));
+    const upgraded = parsed.map(item => {
+      const canonical = initialMap.get(item.id);
+      if (canonical) {
+        return {
+          ...canonical,
+          ...item,
+          section: item.section || canonical.section || 'All',
+          subjectId: item.subjectId || canonical.subjectId,
+          subjectName: item.subjectName || canonical.subjectName,
+          subjectCode: item.subjectCode || canonical.subjectCode,
+          examDate: item.examDate || canonical.examDate || item.startDate || canonical.startDate,
+          startTime: item.startTime || canonical.startTime || '09:00 AM',
+          endTime: item.endTime || canonical.endTime || '11:30 AM',
+          timeRange: item.timeRange || canonical.timeRange || `${item.startTime || canonical.startTime || '09:00 AM'} - ${item.endTime || canonical.endTime || '11:30 AM'}`,
+          maxMarks: item.maxMarks ?? canonical.maxMarks ?? 100,
+          passingMarks: item.passingMarks ?? canonical.passingMarks ?? 35,
+          roomNumber: item.roomNumber ?? canonical.roomNumber ?? ''
+        };
+      }
+      return item;
+    });
+    const existingIds = new Set(upgraded.map(item => item.id));
+    const missingItems = initialList.filter(item => !existingIds.has(item.id));
+    return [...upgraded, ...missingItems];
+  } catch {
+    return initialList;
+  }
+}
+
 export function computeComponentMonthlyAmount(comp: FeeComponent): number {
   switch (comp.frequency) {
     case 'Monthly':
@@ -556,7 +592,7 @@ export const DataProvider: React.FC<{
 }> = ({ children, studentRepository, leaveRepository }) => {
   const [classes, setClasses] = useState<SchoolClass[]>(() => loadAndMerge('erp_classes', initialClasses));
   const [subjects, setSubjects] = useState<AcademicSubject[]>(() => loadAndMerge('erp_subjects', initialSubjects));
-  const [exams, setExams] = useState<ExamSchedule[]>(() => loadAndMerge('erp_exams', initialExams));
+  const [exams, setExams] = useState<ExamSchedule[]>(() => loadAndMergeExams('erp_exams', initialExams));
   const [examResults, setExamResults] = useState<ExamResultRecord[]>(() => loadAndMerge('erp_exam_results', initialExamResults));
   const [inventory, setInventory] = useState<InventoryItem[]>(() => loadAndMerge('erp_inventory', initialInventory));
   const [schools, setSchools] = useState<SchoolProfile[]>(() => loadAndMerge('erp_schools', initialSchools));

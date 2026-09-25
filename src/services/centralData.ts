@@ -327,13 +327,24 @@ export interface AcademicSubject {
 
 export interface ExamSchedule {
   id: string;
-  name: string;
+  name: string; // Exam series / title, e.g. "Mid-Term Examination 2026"
   academicYear: string;
   classId: string;
   className: string;
-  startDate: string;
-  endDate: string;
+  section: string; // e.g. "A", "B", "C", "All"
+  subjectId: string;
+  subjectName: string;
+  subjectCode?: string;
+  examDate: string; // YYYY-MM-DD
+  startTime: string; // e.g. "09:00 AM"
+  endTime: string; // e.g. "11:30 AM"
+  timeRange?: string; // e.g. "09:00 AM - 11:30 AM"
+  maxMarks: number; // e.g. 100
+  passingMarks?: number; // e.g. 35
+  roomNumber?: string; // e.g. "Exam Hall A"
   status: 'scheduled' | 'ongoing' | 'completed';
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface ExamResultRecord {
@@ -2767,45 +2778,266 @@ export const initialSubjects: AcademicSubject[] = [
 
 // Exams
 export const initialExams: ExamSchedule[] = [
+  // Class 10 Section A: Mid-Term Examination 2026 (Multiple exams on Sep 25 & Sep 29)
   {
     id: 'exam-1',
     name: 'Mid-Term Examination 2026',
     academicYear: '2026-2027',
     classId: 'c-10',
     className: '10',
+    section: 'A',
+    subjectId: 'sub-1',
+    subjectName: 'Mathematics',
+    subjectCode: 'MATH-10',
+    examDate: '2026-09-25',
+    startTime: '09:00 AM',
+    endTime: '11:30 AM',
+    timeRange: '09:00 AM - 11:30 AM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Exam Hall A',
+    status: 'scheduled',
     startDate: '2026-09-25',
-    endDate: '2026-10-08',
-    status: 'scheduled'
+    endDate: '2026-09-25'
   },
   {
-    id: 'exam-2',
-    name: 'Unit Assessment Test - 1',
+    id: 'exam-102',
+    name: 'Mid-Term Examination 2026',
     academicYear: '2026-2027',
     classId: 'c-10',
     className: '10',
-    startDate: '2026-08-10',
-    endDate: '2026-08-18',
-    status: 'completed'
+    section: 'A',
+    subjectId: 'sub-5',
+    subjectName: 'Computer Applications Lab',
+    subjectCode: 'CS-10',
+    examDate: '2026-09-25',
+    startTime: '01:30 PM',
+    endTime: '03:30 PM',
+    timeRange: '01:30 PM - 03:30 PM',
+    maxMarks: 50,
+    passingMarks: 20,
+    roomNumber: 'Computer Lab 2',
+    status: 'scheduled',
+    startDate: '2026-09-25',
+    endDate: '2026-09-25'
   },
   {
-    id: 'exam-3',
-    name: 'Pre-Primary Term 1 Rhymes & Assessment',
+    id: 'exam-103',
+    name: 'Mid-Term Examination 2026',
     academicYear: '2026-2027',
-    classId: 'c-nursery',
-    className: 'Nursery',
-    startDate: '2026-09-20',
-    endDate: '2026-09-24',
-    status: 'ongoing'
+    classId: 'c-10',
+    className: '10',
+    section: 'A',
+    subjectId: 'sub-2',
+    subjectName: 'Physics',
+    subjectCode: 'PHY-10',
+    examDate: '2026-09-26',
+    startTime: '09:00 AM',
+    endTime: '12:00 PM',
+    timeRange: '09:00 AM - 12:00 PM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Exam Hall A',
+    status: 'scheduled',
+    startDate: '2026-09-26',
+    endDate: '2026-09-26'
   },
+  {
+    id: 'exam-104',
+    name: 'Mid-Term Examination 2026',
+    academicYear: '2026-2027',
+    classId: 'c-10',
+    className: '10',
+    section: 'A',
+    subjectId: 'sub-3',
+    subjectName: 'Chemistry',
+    subjectCode: 'CHEM-10',
+    examDate: '2026-09-28',
+    startTime: '09:00 AM',
+    endTime: '12:00 PM',
+    timeRange: '09:00 AM - 12:00 PM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Exam Hall A',
+    status: 'scheduled',
+    startDate: '2026-09-28',
+    endDate: '2026-09-28'
+  },
+  {
+    id: 'exam-105',
+    name: 'Mid-Term Examination 2026',
+    academicYear: '2026-2027',
+    classId: 'c-10',
+    className: '10',
+    section: 'A',
+    subjectId: 'sub-4',
+    subjectName: 'English Literature',
+    subjectCode: 'ENG-10',
+    examDate: '2026-09-29',
+    startTime: '09:00 AM',
+    endTime: '11:30 AM',
+    timeRange: '09:00 AM - 11:30 AM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Exam Hall A',
+    status: 'scheduled',
+    startDate: '2026-09-29',
+    endDate: '2026-09-29'
+  },
+  {
+    id: 'exam-106',
+    name: 'Mid-Term Examination 2026',
+    academicYear: '2026-2027',
+    classId: 'c-10',
+    className: '10',
+    section: 'A',
+    subjectId: 'sub-6',
+    subjectName: 'Social Studies',
+    subjectCode: 'SST-10',
+    examDate: '2026-09-29',
+    startTime: '01:30 PM',
+    endTime: '04:00 PM',
+    timeRange: '01:30 PM - 04:00 PM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Exam Hall A',
+    status: 'scheduled',
+    startDate: '2026-09-29',
+    endDate: '2026-09-29'
+  },
+
+  // Class 10 Section B: Mid-Term Examination 2026
+  {
+    id: 'exam-107',
+    name: 'Mid-Term Examination 2026',
+    academicYear: '2026-2027',
+    classId: 'c-10',
+    className: '10',
+    section: 'B',
+    subjectId: 'sub-1',
+    subjectName: 'Mathematics',
+    subjectCode: 'MATH-10',
+    examDate: '2026-09-25',
+    startTime: '09:00 AM',
+    endTime: '11:30 AM',
+    timeRange: '09:00 AM - 11:30 AM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Exam Hall B',
+    status: 'scheduled',
+    startDate: '2026-09-25',
+    endDate: '2026-09-25'
+  },
+  {
+    id: 'exam-108',
+    name: 'Mid-Term Examination 2026',
+    academicYear: '2026-2027',
+    classId: 'c-10',
+    className: '10',
+    section: 'B',
+    subjectId: 'sub-5',
+    subjectName: 'Computer Applications Lab',
+    subjectCode: 'CS-10',
+    examDate: '2026-09-25',
+    startTime: '01:30 PM',
+    endTime: '03:30 PM',
+    timeRange: '01:30 PM - 03:30 PM',
+    maxMarks: 50,
+    passingMarks: 20,
+    roomNumber: 'Computer Lab 1',
+    status: 'scheduled',
+    startDate: '2026-09-25',
+    endDate: '2026-09-25'
+  },
+
+  // Class 5: Single exam on Sep 28
   {
     id: 'exam-4',
     name: 'Class 5 Primary Foundation Exam',
     academicYear: '2026-2027',
     classId: 'c-5',
     className: '5',
+    section: 'A',
+    subjectId: 'sub-10',
+    subjectName: 'Environmental Studies',
+    subjectCode: 'EVS-05',
+    examDate: '2026-09-28',
+    startTime: '09:30 AM',
+    endTime: '11:30 AM',
+    timeRange: '09:30 AM - 11:30 AM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Room 12',
+    status: 'scheduled',
     startDate: '2026-09-28',
-    endDate: '2026-10-05',
-    status: 'scheduled'
+    endDate: '2026-09-28'
+  },
+
+  // Nursery: Assessment
+  {
+    id: 'exam-3',
+    name: 'Pre-Primary Term 1 Assessment',
+    academicYear: '2026-2027',
+    classId: 'c-nursery',
+    className: 'Nursery',
+    section: 'A',
+    subjectId: 'sub-7',
+    subjectName: 'Early Numeracy & Phonics',
+    subjectCode: 'NUR-01',
+    examDate: '2026-09-20',
+    startTime: '09:00 AM',
+    endTime: '10:30 AM',
+    timeRange: '09:00 AM - 10:30 AM',
+    maxMarks: 50,
+    passingMarks: 20,
+    roomNumber: 'Activity Hall',
+    status: 'completed',
+    startDate: '2026-09-20',
+    endDate: '2026-09-20'
+  },
+
+  // Unit Assessment Test - 1 (Completed)
+  {
+    id: 'exam-2',
+    name: 'Unit Assessment Test - 1',
+    academicYear: '2026-2027',
+    classId: 'c-10',
+    className: '10',
+    section: 'A',
+    subjectId: 'sub-1',
+    subjectName: 'Mathematics',
+    subjectCode: 'MATH-10',
+    examDate: '2026-08-10',
+    startTime: '09:00 AM',
+    endTime: '10:30 AM',
+    timeRange: '09:00 AM - 10:30 AM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Room 101',
+    status: 'completed',
+    startDate: '2026-08-10',
+    endDate: '2026-08-10'
+  },
+  {
+    id: 'exam-202',
+    name: 'Unit Assessment Test - 1',
+    academicYear: '2026-2027',
+    classId: 'c-10',
+    className: '10',
+    section: 'A',
+    subjectId: 'sub-2',
+    subjectName: 'Physics',
+    subjectCode: 'PHY-10',
+    examDate: '2026-08-10',
+    startTime: '11:30 AM',
+    endTime: '01:00 PM',
+    timeRange: '11:30 AM - 01:00 PM',
+    maxMarks: 100,
+    passingMarks: 35,
+    roomNumber: 'Room 101',
+    status: 'completed',
+    startDate: '2026-08-10',
+    endDate: '2026-08-10'
   }
 ];
 
