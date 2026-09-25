@@ -88,18 +88,8 @@ export const AttendanceManagement: React.FC = () => {
   const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
 
   // --- Staff Attendance State ---
-  const [staffRoleFilter, setStaffRoleFilter] = useState<string>('all'); // all | teacher | admin | support
-  const [staffDepartmentFilter, setStaffDepartmentFilter] = useState<string>('all');
+  const [staffRoleFilter, setStaffRoleFilter] = useState<string>('all'); // all | Teacher | Admin | Support
   const [staffSearchQuery, setStaffSearchQuery] = useState<string>('');
-
-  // Staff Edit Modal State
-  const [showStaffModal, setShowStaffModal] = useState<boolean>(false);
-  const [editingStaffId, setEditingStaffId] = useState<string>('');
-  const [editingStaffName, setEditingStaffName] = useState<string>('');
-  const [staffFormStatus, setStaffFormStatus] = useState<'Present' | 'Absent' | 'Late' | 'Half Day' | 'On Leave'>('Present');
-  const [staffFormInTime, setStaffFormInTime] = useState<string>('08:00 AM');
-  const [staffFormOutTime, setStaffFormOutTime] = useState<string>('03:30 PM');
-  const [staffFormRemarks, setStaffFormRemarks] = useState<string>('');
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -231,14 +221,6 @@ export const AttendanceManagement: React.FC = () => {
   // -------------------------------------------------------------
   // Staff Attendance Resolution & Handlers
   // -------------------------------------------------------------
-  const allDepartments = useMemo(() => {
-    const deps = new Set<string>();
-    employees.forEach(e => {
-      if (e.department) deps.add(e.department);
-    });
-    return Array.from(deps);
-  }, [employees]);
-
   // Staff Roster for Selected Date
   const staffRoster = useMemo(() => {
     return employees.map(emp => {
@@ -259,7 +241,7 @@ export const AttendanceManagement: React.FC = () => {
           status: 'Present' as const,
           checkInTime: '08:00 AM',
           checkOutTime: '03:30 PM',
-          markedBy: 'Biometric Sync',
+          markedBy: 'Admin',
           markedAt: '08:00 AM',
           remarks: ''
         }
@@ -275,6 +257,7 @@ export const AttendanceManagement: React.FC = () => {
         (item.employee.firstName || '').toLowerCase().includes(q) ||
         (item.employee.lastName || '').toLowerCase().includes(q) ||
         (item.employee.employeeId || '').toLowerCase().includes(q) ||
+        (item.employee.department || '').toLowerCase().includes(q) ||
         (item.employee.designation || '').toLowerCase().includes(q);
 
       const matchRole =
@@ -282,39 +265,25 @@ export const AttendanceManagement: React.FC = () => {
           ? true
           : (item.employee.role || '').toLowerCase() === staffRoleFilter.toLowerCase();
 
-      const matchDepartment =
-        staffDepartmentFilter === 'all'
-          ? true
-          : (item.employee.department || '').toLowerCase() === staffDepartmentFilter.toLowerCase();
-
-      return matchSearch && matchRole && matchDepartment;
+      return matchSearch && matchRole;
     });
-  }, [staffRoster, staffSearchQuery, staffRoleFilter, staffDepartmentFilter]);
+  }, [staffRoster, staffSearchQuery, staffRoleFilter]);
 
-  // Staff Stats
+  // Staff Stats: Present and Absent
   const staffStats = useMemo(() => {
-    const total = staffRoster.length;
     let present = 0;
     let absent = 0;
-    let onLeave = 0;
-    let late = 0;
-    let halfDay = 0;
 
     staffRoster.forEach(({ attendance }) => {
       if (attendance.status === 'Present') present++;
       else if (attendance.status === 'Absent') absent++;
-      else if (attendance.status === 'On Leave') onLeave++;
-      else if (attendance.status === 'Late') late++;
-      else if (attendance.status === 'Half Day') halfDay++;
     });
 
-    const attendancePct = total > 0 ? Math.round(((present + late + (halfDay * 0.5)) / total) * 100) : 0;
-
-    return { total, present, absent, onLeave, late, halfDay, attendancePct };
+    return { present, absent };
   }, [staffRoster]);
 
-  // Quick Staff Status
-  const handleQuickStaffStatus = (empId: string, status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'On Leave') => {
+  // Quick Staff Status Setter
+  const handleQuickStaffStatus = (empId: string, status: 'Present' | 'Absent') => {
     const emp = employees.find(e => e.id === empId);
     markStaffAttendance(
       empId,
@@ -324,45 +293,39 @@ export const AttendanceManagement: React.FC = () => {
       status === 'Present' ? '03:30 PM' : undefined,
       'Status updated by Admin'
     );
-    showToast(`Updated attendance for ${emp?.firstName} ${emp?.lastName} to "${status}".`);
-  };
-
-  // Open Staff Edit Modal
-  const handleOpenStaffModal = (empId: string, name: string, status: any, inTime?: string, outTime?: string, remarks?: string) => {
-    setEditingStaffId(empId);
-    setEditingStaffName(name);
-    setStaffFormStatus(status);
-    setStaffFormInTime(inTime || '08:00 AM');
-    setStaffFormOutTime(outTime || '03:30 PM');
-    setStaffFormRemarks(remarks || '');
-    setShowStaffModal(true);
-  };
-
-  // Save Staff Modal
-  const handleSaveStaffModal = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingStaffId) return;
-    markStaffAttendance(
-      editingStaffId,
-      selectedDate,
-      staffFormStatus,
-      staffFormInTime,
-      staffFormOutTime,
-      staffFormRemarks
-    );
-    setShowStaffModal(false);
-    showToast(`Staff attendance record updated for ${editingStaffName}.`);
+    showToast(`Attendance updated to "${status}" for ${emp?.firstName} ${emp?.lastName}`);
   };
 
   // Bulk Mark Staff
   const handleBulkMarkStaff = (status: 'Present' | 'Absent') => {
-    bulkMarkStaffAttendance(selectedDate, status);
-    showToast(`Bulk updated all staff members as "${status}" for ${selectedDate}.`);
+    const activeStaff = filteredStaffRoster.filter(r => r.attendance.status !== 'On Leave');
+    activeStaff.forEach(r => {
+      markStaffAttendance(r.employee.id, selectedDate, status);
+    });
+    showToast(`Bulk marked ${activeStaff.length} staff members as "${status}".`);
   };
 
-  // Sync Biometric Simulated
-  const handleSyncBiometric = () => {
-    showToast('Biometric terminal sync complete: 6 teacher/staff records updated.');
+  // Export Staff CSV
+  const handleExportStaffCSV = () => {
+    const headers = ['Staff Name', 'Employee ID', 'Role', 'Department', 'Date', 'Status'];
+    const rows = filteredStaffRoster.map(r => [
+      `"${r.employee.firstName} ${r.employee.lastName}"`,
+      r.employee.employeeId || '',
+      r.employee.role || '',
+      r.employee.department || '',
+      selectedDate,
+      r.attendance.status
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Staff_Attendance_${selectedDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Staff attendance report CSV downloaded successfully.');
   };
 
   // -------------------------------------------------------------
@@ -720,329 +683,161 @@ export const AttendanceManagement: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'staff' && (
         <div className="space-y-6">
-          {/* Top Filter & Biometric Actions Bar */}
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Role Filter */}
+          {/* Staff Role Dropdown Filter */}
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm">
+            <div className="flex flex-wrap items-center gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  Staff Role
-                </label>
-                <div className="flex items-center bg-gray-100 dark:bg-slate-800 p-1 rounded-xl border border-gray-200 dark:border-slate-700">
-                  {[
-                    { id: 'all', label: 'All Staff' },
-                    { id: 'teacher', label: 'Teachers' },
-                    { id: 'admin', label: 'Admin' },
-                    { id: 'support', label: 'Support' }
-                  ].map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => setStaffRoleFilter(r.id)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        staffRoleFilter === r.id
-                          ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                          : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
-                      }`}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Department Filter */}
-              <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  Department
+                <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Select Staff Role
                 </label>
                 <select
-                  value={staffDepartmentFilter}
-                  onChange={(e) => setStaffDepartmentFilter(e.target.value)}
-                  className="px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  value={staffRoleFilter}
+                  onChange={(e) => setStaffRoleFilter(e.target.value)}
+                  className="px-3.5 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[160px]"
                 >
-                  <option value="all">All Departments</option>
-                  {allDepartments.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
+                  <option value="all">All Roles</option>
+                  <option value="Teacher">Teachers</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Support">Support</option>
                 </select>
               </div>
             </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={handleSyncBiometric}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Sync Biometric Terminal
-              </button>
-
-              <button
-                onClick={() => handleBulkMarkStaff('Present')}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all"
-              >
-                <Check className="w-3.5 h-3.5" />
-                Mark All Present
-              </button>
-            </div>
           </div>
 
-          {/* Staff Attendance KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-gray-500 dark:text-slate-400">
-                <span className="text-xs font-medium uppercase">Total Employees</span>
-                <Users className="w-4 h-4 text-indigo-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">
-                {staffStats.total}
-              </p>
-              <div className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 mt-0.5">
-                Punctuality: {staffStats.attendancePct}%
-              </div>
-            </div>
-
+          {/* Quick Metrics Bar: Present & Absent only */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                <span className="text-xs font-medium uppercase">Present Today</span>
-                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase tracking-wider">Present</span>
+                <CheckCircle2 className="w-5 h-5" />
               </div>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
                 {staffStats.present}
               </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                On Duty
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-orange-600 dark:text-orange-400">
-                <span className="text-xs font-medium uppercase">On Approved Leave</span>
-                <Calendar className="w-4 h-4" />
-              </div>
-              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">
-                {staffStats.onLeave}
-              </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                Synced from Leave Portal
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-                <span className="text-xs font-medium uppercase">Late Arrival</span>
-                <Clock className="w-4 h-4" />
-              </div>
-              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                {staffStats.late}
-              </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                After 08:15 AM
-              </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
-                <span className="text-xs font-medium uppercase">Unexcused Absent</span>
-                <XCircle className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase tracking-wider">Absent</span>
+                <XCircle className="w-5 h-5" />
               </div>
-              <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+              <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-2">
                 {staffStats.absent}
               </p>
-              <div className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                No Notice
-              </div>
             </div>
           </div>
 
-          {/* Search Input for Staff */}
-          <div className="relative max-w-md">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search faculty or staff by name, code, designation..."
-              value={staffSearchQuery}
-              onChange={(e) => setStaffSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+          {/* Action Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search staff by name, ID, or department..."
+                value={staffSearchQuery}
+                onChange={(e) => setStaffSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Quick Batch Actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleBulkMarkStaff('Present')}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Mark All Present
+              </button>
+
+              <button
+                onClick={handleExportStaffCSV}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-gray-200 dark:hover:bg-slate-700 transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export CSV
+              </button>
+            </div>
           </div>
 
-          {/* Staff Attendance Table */}
+          {/* Teacher & Staff Attendance Register Table */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">
-                  Teacher & Staff Attendance Roster
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Record of all employees for {selectedDate}
-                </p>
-              </div>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-100 text-base">
+                Attendance register
+              </h3>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/75 dark:bg-slate-800/50 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 border-b border-gray-200 dark:border-slate-800">
-                    <th className="py-3.5 px-6">Staff Member</th>
-                    <th className="py-3.5 px-4">Role & Dept</th>
-                    <th className="py-3.5 px-4">Timings (In / Out)</th>
-                    <th className="py-3.5 px-4">Attendance Status</th>
-                    <th className="py-3.5 px-4 text-center">Quick Toggle</th>
-                    <th className="py-3.5 px-4">Punctuality / Remarks</th>
-                    <th className="py-3.5 px-6 text-right">Action</th>
+                    <th className="py-3.5 px-6">Staff Name</th>
+                    <th className="py-3.5 px-6">Department</th>
+                    <th className="py-3.5 px-6">Attendance Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800/80 text-sm">
                   {filteredStaffRoster.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-12 text-gray-500 dark:text-slate-400">
-                        No employees found matching current filter criteria.
+                      <td colSpan={3} className="text-center py-12 text-gray-500 dark:text-slate-400">
+                        No staff members found matching current filters.
                       </td>
                     </tr>
                   ) : (
                     filteredStaffRoster.map(({ employee, attendance }) => {
                       const isPresent = attendance.status === 'Present';
                       const isAbsent = attendance.status === 'Absent';
-                      const isLate = attendance.status === 'Late';
                       const isOnLeave = attendance.status === 'On Leave';
-                      const isHalfDay = attendance.status === 'Half Day';
 
                       return (
                         <tr
                           key={employee.id}
                           className="hover:bg-gray-50/80 dark:hover:bg-slate-800/40 transition-colors"
                         >
-                          {/* Staff Info */}
+                          {/* Staff Name */}
+                          <td className="py-4 px-6 font-medium text-gray-900 dark:text-slate-100">
+                            {employee.firstName} {employee.lastName}
+                          </td>
+
+                          {/* Department */}
+                          <td className="py-4 px-6 text-gray-600 dark:text-slate-400">
+                            {employee.department || 'General'}
+                          </td>
+
+                          {/* Attendance Toggle */}
                           <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              <span className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                                {(employee.firstName || 'E')[0]}{(employee.lastName || '')[0] || ''}
-                              </span>
-                              <div>
-                                <div className="font-bold text-gray-900 dark:text-slate-100">
-                                  {employee.firstName} {employee.lastName}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-slate-400 font-mono">
-                                  {employee.employeeId} • {employee.designation}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Role & Dept */}
-                          <td className="py-4 px-4">
-                            <div className="font-medium text-xs text-gray-800 dark:text-slate-200">
-                              {employee.department || 'General'}
-                            </div>
-                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400">
-                              {employee.role}
-                            </span>
-                          </td>
-
-                          {/* Timings */}
-                          <td className="py-4 px-4 text-xs font-mono">
-                            {isPresent || isLate || isHalfDay ? (
-                              <div>
-                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{attendance.checkInTime || '--:--'}</span>
-                                <span className="text-gray-400 mx-1">→</span>
-                                <span className="text-gray-600 dark:text-slate-400">{attendance.checkOutTime || '--:--'}</span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400 dark:text-slate-500 italic">Not Checked In</span>
-                            )}
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-4 px-4">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                                isPresent
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                  : isAbsent
-                                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                                  : isOnLeave
-                                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300'
-                                  : isLate
-                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                  : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
-                              }`}
-                            >
-                              {isPresent && <CheckCircle2 className="w-3.5 h-3.5" />}
-                              {isAbsent && <XCircle className="w-3.5 h-3.5" />}
-                              {isOnLeave && <Calendar className="w-3.5 h-3.5" />}
-                              {isLate && <Clock className="w-3.5 h-3.5" />}
-                              {isHalfDay && <HelpCircle className="w-3.5 h-3.5" />}
-                              {attendance.status}
-                            </span>
-                          </td>
-
-                          {/* Quick Status Buttons */}
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-center gap-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg border border-gray-200 dark:border-slate-700 w-fit mx-auto">
-                              <button
-                                title="Present"
-                                onClick={() => handleQuickStaffStatus(employee.id, 'Present')}
-                                className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
-                                  isPresent ? 'bg-emerald-600 text-white shadow' : 'text-gray-600 dark:text-slate-400 hover:bg-emerald-100 hover:text-emerald-700'
-                                }`}
-                              >
-                                Present
-                              </button>
-                              <button
-                                title="Late"
-                                onClick={() => handleQuickStaffStatus(employee.id, 'Late')}
-                                className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
-                                  isLate ? 'bg-amber-600 text-white shadow' : 'text-gray-600 dark:text-slate-400 hover:bg-amber-100 hover:text-amber-700'
-                                }`}
-                              >
-                                Late
-                              </button>
-                              <button
-                                title="Absent"
-                                onClick={() => handleQuickStaffStatus(employee.id, 'Absent')}
-                                className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
-                                  isAbsent ? 'bg-rose-600 text-white shadow' : 'text-gray-600 dark:text-slate-400 hover:bg-rose-100 hover:text-rose-700'
-                                }`}
-                              >
-                                Absent
-                              </button>
-                              <button
-                                title="On Leave"
-                                onClick={() => handleQuickStaffStatus(employee.id, 'On Leave')}
-                                className={`px-2 py-1 rounded text-[11px] font-bold transition-all ${
-                                  isOnLeave ? 'bg-orange-600 text-white shadow' : 'text-gray-600 dark:text-slate-400 hover:bg-orange-100 hover:text-orange-700'
-                                }`}
-                              >
-                                Leave
-                              </button>
-                            </div>
-                          </td>
-
-                          {/* Remarks */}
-                          <td className="py-4 px-4 text-xs text-gray-500 dark:text-slate-400">
-                            {attendance.remarks ? (
-                              <span className="italic text-gray-700 dark:text-slate-300">
-                                {attendance.remarks}
+                            {isOnLeave ? (
+                              <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+                                On Leave
                               </span>
                             ) : (
-                              <span className="text-gray-400 dark:text-slate-500">
-                                Marked by {attendance.markedBy}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickStaffStatus(employee.id, 'Present')}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    isPresent
+                                      ? 'bg-emerald-600 text-white shadow-sm'
+                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
+                                  }`}
+                                >
+                                  Present
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickStaffStatus(employee.id, 'Absent')}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    isAbsent
+                                      ? 'bg-rose-600 text-white shadow-sm'
+                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
+                                  }`}
+                                >
+                                  Absent
+                                </button>
+                              </div>
                             )}
-                          </td>
-
-                          {/* Action */}
-                          <td className="py-4 px-6 text-right">
-                            <button
-                              onClick={() => handleOpenStaffModal(employee.id, `${employee.firstName} ${employee.lastName}`, attendance.status, attendance.checkInTime, attendance.checkOutTime, attendance.remarks)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-semibold transition-all"
-                            >
-                              <Edit3 className="w-3 h-3 text-gray-500" />
-                              Edit Timings
-                            </button>
                           </td>
                         </tr>
                       );
@@ -1186,118 +981,7 @@ export const AttendanceManagement: React.FC = () => {
 
 
 
-      {/* ========================================================================= */}
-      {/* MODAL: STAFF ATTENDANCE EDIT */}
-      {/* ========================================================================= */}
-      {showStaffModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-700 to-purple-700 text-white">
-              <div className="flex items-center gap-2.5">
-                <GraduationCap className="w-5 h-5" />
-                <h3 className="font-bold text-base">Update Staff Attendance & Timings</h3>
-              </div>
-              <button
-                onClick={() => setShowStaffModal(false)}
-                className="text-white/80 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSaveStaffModal} className="p-6 space-y-4">
-              <div className="p-3.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
-                <div className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Employee</div>
-                <div className="font-bold text-gray-900 dark:text-slate-100 text-base mt-0.5">
-                  {editingStaffName}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Date: {selectedDate}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                  Status
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {(['Present', 'Absent', 'Late', 'Half Day', 'On Leave'] as const).map(st => (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => setStaffFormStatus(st)}
-                      className={`py-2 px-1.5 rounded-xl text-xs font-bold border transition-all ${
-                        staffFormStatus === st
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                          : 'bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Check-In Time
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="08:00 AM"
-                    value={staffFormInTime}
-                    onChange={(e) => setStaffFormInTime(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Check-Out Time
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="03:30 PM"
-                    value={staffFormOutTime}
-                    onChange={(e) => setStaffFormOutTime(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Remarks / Notes
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Approved outdoor academic excursion duty"
-                  value={staffFormRemarks}
-                  onChange={(e) => setStaffFormRemarks(e.target.value)}
-                  className="w-full p-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowStaffModal(false)}
-                  className="px-4 py-2 text-sm font-semibold text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/20"
-                >
-                  Save Record
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
