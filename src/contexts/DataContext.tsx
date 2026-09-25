@@ -54,12 +54,12 @@ interface DataContextType {
   overrideStudentAttendance: (
     studentId: string,
     date: string,
-    status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused',
+    status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused' | 'On Leave',
     remarks?: string,
     overrideBy?: string
   ) => void;
   bulkMarkStudentAttendance: (
-    records: Array<{ studentId: string; status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused' }>,
+    records: Array<{ studentId: string; status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused' | 'On Leave' }>,
     className: string,
     sectionName: string,
     date: string,
@@ -1282,7 +1282,7 @@ export const DataProvider: React.FC<{
   };
 
   const bulkMarkStudentAttendance = (
-    records: Array<{ studentId: string; status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused' }>,
+    records: Array<{ studentId: string; status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused' | 'On Leave' }>,
     className: string,
     sectionName: string,
     date: string,

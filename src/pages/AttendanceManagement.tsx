@@ -21,6 +21,7 @@ export const AttendanceManagement: React.FC = () => {
     students,
     classes,
     employees,
+    leaves,
     studentAttendance,
     staffAttendance,
     overrideStudentAttendance,
@@ -106,9 +107,18 @@ export const AttendanceManagement: React.FC = () => {
   // Merged Student Attendance Roster for Selected Date
   const studentRoster = useMemo(() => {
     return sectionStudents.map(stu => {
+      const hasApprovedLeave = leaves.some(
+        l => (l.employeeId === stu.id || l.employeeId === stu.studentId) &&
+             l.status === 'approved' &&
+             l.startDate <= selectedDate &&
+             l.endDate >= selectedDate
+      );
       const record = studentAttendance.find(
         a => a.studentId === stu.id && a.date === selectedDate
       );
+
+      const defaultStatus = hasApprovedLeave ? 'On Leave' : 'Present';
+
       return {
         student: stu,
         attendance: record || {
@@ -119,16 +129,16 @@ export const AttendanceManagement: React.FC = () => {
           class: stu.class,
           section: stu.section,
           date: selectedDate,
-          status: 'Present' as const, // Default fallback
-          markedBy: 'Class Teacher',
+          status: defaultStatus as const,
+          markedBy: hasApprovedLeave ? 'Leave Management' : 'Class Teacher',
           markedByRole: 'Teacher' as const,
           markedAt: '08:00 AM',
-          source: 'Teacher Mobile App' as const,
+          source: hasApprovedLeave ? ('Admin Portal' as const) : ('Teacher Mobile App' as const),
           isOverridden: false
         }
       };
     });
-  }, [sectionStudents, studentAttendance, selectedDate]);
+  }, [sectionStudents, studentAttendance, leaves, selectedDate]);
 
   // Filtered Student Roster by search
   const filteredStudentRoster = useMemo(() => {
@@ -164,14 +174,17 @@ export const AttendanceManagement: React.FC = () => {
     showToast(`Attendance updated to "${newStatus}" for ${stu?.firstName} ${stu?.lastName}`);
   };
 
-  // Bulk Mark Student Action
+  // Bulk Mark Student Action (Skipping On Leave students)
   const handleBulkMarkStudents = (statusToSet: 'Present' | 'Absent') => {
-    const records = filteredStudentRoster.map(({ student }) => ({
+    const activeStudents = filteredStudentRoster.filter(
+      r => r.attendance.status !== 'On Leave' && r.attendance.status !== 'Excused'
+    );
+    const records = activeStudents.map(({ student }) => ({
       studentId: student.id,
       status: statusToSet
     }));
     bulkMarkStudentAttendance(records, selectedClass, selectedSection, selectedDate, 'School Admin');
-    showToast(`Bulk marked all ${records.length} students as "${statusToSet}".`);
+    showToast(`Bulk marked ${records.length} students as "${statusToSet}".`);
   };
 
   // Export Student CSV
@@ -533,6 +546,7 @@ export const AttendanceManagement: React.FC = () => {
                     filteredStudentRoster.map(({ student, attendance }) => {
                       const isPresent = attendance.status === 'Present';
                       const isAbsent = attendance.status === 'Absent';
+                      const isOnLeave = attendance.status === 'On Leave' || attendance.status === 'Excused';
 
                       return (
                         <tr
@@ -551,30 +565,36 @@ export const AttendanceManagement: React.FC = () => {
 
                           {/* Attendance Status */}
                           <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleQuickStatusChange(student.id, 'Present')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                  isPresent
-                                    ? 'bg-emerald-600 text-white shadow-sm'
-                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
-                                }`}
-                              >
-                                Present
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleQuickStatusChange(student.id, 'Absent')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                  isAbsent
-                                    ? 'bg-rose-600 text-white shadow-sm'
-                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
-                                }`}
-                              >
-                                Absent
-                              </button>
-                            </div>
+                            {isOnLeave ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                                On Leave
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickStatusChange(student.id, 'Present')}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    isPresent
+                                      ? 'bg-emerald-600 text-white shadow-sm'
+                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40'
+                                  }`}
+                                >
+                                  Present
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickStatusChange(student.id, 'Absent')}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    isAbsent
+                                      ? 'bg-rose-600 text-white shadow-sm'
+                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40'
+                                  }`}
+                                >
+                                  Absent
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

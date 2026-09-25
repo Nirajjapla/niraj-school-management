@@ -376,7 +376,7 @@ export interface StudentAttendanceRecord {
   class: string;
   section: string;
   date: string; // YYYY-MM-DD
-  status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused';
+  status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Excused' | 'On Leave';
   markedBy: string; // Class Teacher or Admin
   markedByRole: 'Teacher' | 'Admin';
   markedAt: string; // e.g. "08:15 AM"
@@ -2482,6 +2482,22 @@ export const initialLeaves: LeaveRequest[] = [
     status: 'approved',
     appliedDate: '2026-08-05',
     approvedBy: 'Admin'
+  },
+  {
+    id: 'lv-7',
+    employeeId: 'stu-16',
+    employeeName: 'Devansh Agarwal',
+    employeeRole: 'student',
+    designation: 'Class 1-A (Roll No. 02)',
+    leaveType: 'Paid',
+    isPaid: true,
+    startDate: '2026-09-11',
+    endDate: '2026-09-12',
+    daysCount: 2,
+    reason: 'Medical leave informed by parent',
+    status: 'approved',
+    appliedDate: '2026-09-10',
+    approvedBy: 'Admin'
   }
 ];
 
@@ -2927,7 +2943,7 @@ export const initialStudentAttendance: StudentAttendanceRecord[] = [
   { id: 'att-10', studentId: 'stu-3', studentName: 'Rohan Verma', rollNumber: '01', class: 'UKG', section: 'B', date: '2026-09-11', status: 'Present', markedBy: 'Sunita Patel', markedByRole: 'Teacher', markedAt: '08:14 AM', source: 'Teacher Mobile App', isOverridden: false },
   { id: 'att-11', studentId: 'stu-14', studentName: 'Sia Singhania', rollNumber: '02', class: 'UKG', section: 'B', date: '2026-09-11', status: 'Present', markedBy: 'Sunita Patel', markedByRole: 'Teacher', markedAt: '08:14 AM', source: 'Teacher Mobile App', isOverridden: false },
   { id: 'att-12', studentId: 'stu-15', studentName: 'Aarohi Sen', rollNumber: '01', class: '1', section: 'A', date: '2026-09-11', status: 'Present', markedBy: 'Priya Joshi', markedByRole: 'Teacher', markedAt: '08:15 AM', source: 'Teacher Mobile App', isOverridden: false },
-  { id: 'att-13', studentId: 'stu-16', studentName: 'Devansh Agarwal', rollNumber: '02', class: '1', section: 'A', date: '2026-09-11', status: 'Excused', markedBy: 'Priya Joshi', markedByRole: 'Teacher', markedAt: '08:15 AM', source: 'Teacher Mobile App', isOverridden: false, overrideRemarks: 'Medical leave informed by parent' },
+  { id: 'att-13', studentId: 'stu-16', studentName: 'Devansh Agarwal', rollNumber: '02', class: '1', section: 'A', date: '2026-09-11', status: 'On Leave', markedBy: 'Priya Joshi', markedByRole: 'Teacher', markedAt: '08:15 AM', source: 'Teacher Mobile App', isOverridden: false, overrideRemarks: 'Medical leave informed by parent' },
   { id: 'att-14', studentId: 'stu-17', studentName: 'Pranav Pillai', rollNumber: '01', class: '5', section: 'A', date: '2026-09-11', status: 'Present', markedBy: 'Priya Joshi', markedByRole: 'Teacher', markedAt: '08:18 AM', source: 'Teacher Mobile App', isOverridden: false },
   { id: 'att-15', studentId: 'stu-18', studentName: 'Anika Saxena', rollNumber: '02', class: '5', section: 'A', date: '2026-09-11', status: 'Present', markedBy: 'Priya Joshi', markedByRole: 'Teacher', markedAt: '08:18 AM', source: 'Teacher Mobile App', isOverridden: false },
   { id: 'att-16', studentId: 'stu-19', studentName: 'Shaurya Tiwari', rollNumber: '01', class: '5', section: 'B', date: '2026-09-11', status: 'Absent', markedBy: 'Priya Joshi', markedByRole: 'Teacher', markedAt: '08:20 AM', source: 'Teacher Mobile App', isOverridden: false },
