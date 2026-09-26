@@ -7,17 +7,17 @@ import {
   Trash2,
   Eye,
   X,
-  UserCog,
-  Layers,
-  Award,
   User,
   Briefcase,
   Phone,
-  Mail
+  UserCheck
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { indianStates } from '../services/centralData';
+
+const STAFF_DESIGNATIONS = ['Administration', 'Accounts', 'Others'] as const;
+type StaffDesignation = typeof STAFF_DESIGNATIONS[number];
 
 interface Staff {
   id: string;
@@ -26,10 +26,10 @@ interface Staff {
   lastName: string;
   email: string;
   phone: string;
-  designation: string;
-  department: string;
+  designation: StaffDesignation;
   joiningDate: string;
   dob: string;
+  gender: 'Male' | 'Female' | 'Other';
   houseAddress: string;
   city: string;
   state: string;
@@ -40,6 +40,31 @@ interface Staff {
 }
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+function normalizeDesignation(desig?: string): StaffDesignation {
+  if (!desig) return 'Administration';
+  const lower = desig.toLowerCase();
+  if (lower.includes('account') || lower.includes('finance')) return 'Accounts';
+  if (lower.includes('admin') || lower.includes('principal') || lower.includes('office') || lower.includes('clerk') || lower.includes('hr')) return 'Administration';
+  if (desig === 'Administration' || desig === 'Accounts' || desig === 'Others') return desig;
+  return 'Others';
+}
+
+function formatDateDisplay(dateStr?: string): string {
+  if (!dateStr) return '—';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mIdx = parseInt(month, 10) - 1;
+    if (mIdx >= 0 && mIdx < 12) {
+      return `${parseInt(day, 10)} ${months[mIdx]} ${year}`;
+    }
+  }
+  return dateStr;
+}
 
 const FormSection: React.FC<{ title: string; icon: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
   <section className="space-y-3">
@@ -68,54 +93,36 @@ const StaffDetail: React.FC<{ label: string; children: React.ReactNode; fullWidt
   </div>
 );
 
-const StaffManagement: React.FC = () => {
+export const StaffManagement: React.FC = () => {
   const {
     staff: rawStaff,
-    departments,
-    designations,
     addEmployee,
     updateEmployee,
-    deleteEmployee,
-    addDepartment,
-    updateDepartment,
-    deleteDepartment,
-    addDesignation,
-    updateDesignation,
-    deleteDesignation
+    deleteEmployee
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<'staff' | 'departments' | 'designations'>('staff');
   const [searchTerm, setSearchTerm] = useState('');
   const [designationFilter, setDesignationFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-
-  // Department & Designation Modals/Forms
-  const [showDeptModal, setShowDeptModal] = useState(false);
-  const [showDesigModal, setShowDesigModal] = useState(false);
-  const [currentDeptId, setCurrentDeptId] = useState<string | null>(null);
-  const [currentDesigId, setCurrentDesigId] = useState<string | null>(null);
-  const [deptForm, setDeptForm] = useState({ name: '', description: '' });
-  const [desigForm, setDesigForm] = useState({ name: '', description: '' });
 
   const [formData, setFormData] = useState<Partial<Staff>>({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    designation: '',
-    department: '',
+    designation: 'Administration',
     joiningDate: '',
     dob: '',
+    gender: 'Male',
     houseAddress: '',
-    city: '',
-    state: '',
-    pinCode: '',
+    city: 'New Delhi',
+    state: 'Delhi',
+    pinCode: '110001',
     emergencyContact: '',
-    bloodGroup: '',
+    bloodGroup: 'B+',
     paidLeaveQuota: 15,
   });
 
@@ -130,10 +137,10 @@ const StaffManagement: React.FC = () => {
       lastName,
       email: s.email,
       phone: s.phone,
-      designation: s.designation,
-      department: s.department,
+      designation: normalizeDesignation(s.designation),
       joiningDate: s.joiningDate,
       dob: '1985-05-20',
+      gender: (s.gender as any) || 'Male',
       houseAddress: s.address?.street || '45 Civic Center',
       city: s.address?.city || 'New Delhi',
       state: s.address?.state || 'Delhi',
@@ -147,10 +154,10 @@ const StaffManagement: React.FC = () => {
   const filteredStaff = staff.filter((s) => {
     const searchMatch =
       s.staffId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.phone.toLowerCase().includes(searchTerm.toLowerCase());
     const designationMatch = designationFilter ? s.designation === designationFilter : true;
-    const departmentMatch = departmentFilter ? s.department === departmentFilter : true;
-    return searchMatch && designationMatch && departmentMatch;
+    return searchMatch && designationMatch;
   });
 
   const handleAdd = () => {
@@ -160,10 +167,10 @@ const StaffManagement: React.FC = () => {
       lastName: '',
       email: '',
       phone: '',
-      designation: designations[0]?.name || '',
-      department: departments[0]?.name || '',
+      designation: 'Administration',
       joiningDate: new Date().toISOString().split('T')[0],
       dob: '1988-01-01',
+      gender: 'Male',
       houseAddress: '',
       city: 'New Delhi',
       state: 'Delhi',
@@ -199,14 +206,16 @@ const StaffManagement: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const fullName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const desig = formData.designation || 'Administration';
 
     if (isEditing && currentStaff) {
       updateEmployee(currentStaff.id, {
         name: fullName,
         email: formData.email,
         phone: formData.phone,
-        designation: formData.designation,
-        department: formData.department,
+        designation: desig,
+        department: desig,
+        gender: formData.gender,
         bloodGroup: formData.bloodGroup,
         emergencyContact: formData.emergencyContact,
         address: {
@@ -221,14 +230,14 @@ const StaffManagement: React.FC = () => {
       addEmployee({
         code: `ADM-${String(Math.floor(100 + Math.random() * 900))}`,
         name: fullName,
-        role: (formData.department === 'Transport' || formData.department === 'Library') ? 'support' : 'admin',
-        designation: formData.designation || 'Staff Officer',
-        department: formData.department || 'Administration',
+        role: 'admin',
+        designation: desig,
+        department: desig,
         phone: formData.phone || '+91 98765 43210',
-        email: formData.email || `${formData.firstName?.toLowerCase()}@school.com`,
+        email: formData.email || `${formData.firstName?.toLowerCase() || 'staff'}@school.com`,
         joiningDate: formData.joiningDate || new Date().toISOString().split('T')[0],
         qualification: 'Graduate',
-        gender: 'Male',
+        gender: formData.gender || 'Male',
         bloodGroup: formData.bloodGroup || 'B+',
         emergencyContact: formData.emergencyContact,
         address: {
@@ -250,414 +259,174 @@ const StaffManagement: React.FC = () => {
     setCurrentStaff(null);
   };
 
-  // Department CRUD operations
-  const handleAddDept = () => {
-    setDeptForm({ name: '', description: '' });
-    setCurrentDeptId(null);
-    setShowDeptModal(true);
-  };
-
-  const handleEditDept = (dept: { id: string; name: string; description?: string }) => {
-    setDeptForm({ name: dept.name, description: dept.description || '' });
-    setCurrentDeptId(dept.id);
-    setShowDeptModal(true);
-  };
-
-  const handleDeleteDept = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this department?')) {
-      deleteDepartment(id);
-    }
-  };
-
-  const handleDeptSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentDeptId) {
-      updateDepartment(currentDeptId, deptForm);
-    } else {
-      addDepartment(deptForm);
-    }
-    setShowDeptModal(false);
-  };
-
-  // Designation CRUD operations
-  const handleAddDesig = () => {
-    setDesigForm({ name: '', description: '' });
-    setCurrentDesigId(null);
-    setShowDesigModal(true);
-  };
-
-  const handleEditDesig = (desig: { id: string; name: string; description?: string }) => {
-    setDesigForm({ name: desig.name, description: desig.description || '' });
-    setCurrentDesigId(desig.id);
-    setShowDesigModal(true);
-  };
-
-  const handleDeleteDesig = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this designation?')) {
-      deleteDesignation(id);
-    }
-  };
-
-  const handleDesigSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentDesigId) {
-      updateDesignation(currentDesigId, desigForm);
-    } else {
-      addDesignation(desigForm);
-    }
-    setShowDesigModal(false);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Page Header & Tabs */}
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff & HR Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff Management</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-            Manage non-teaching staff directory, departments, and employee designations
+            Manage non-teaching personnel and administrative staff directory
           </p>
         </div>
-        <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-xl">
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-              activeTab === 'staff'
-                ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
-            }`}
+        <button
+          onClick={handleAdd}
+          className="flex items-center space-x-2 bg-[#4e74f9] hover:bg-[#3b5ccc] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-md shadow-blue-500/20"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Staff</span>
+        </button>
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search staff by ID, name, or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Designation Dropdown Filter */}
+          <select
+            value={designationFilter}
+            onChange={(e) => setDesignationFilter(e.target.value)}
+            className="w-full sm:w-auto px-3.5 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[190px]"
           >
-            <UserCog className="w-4 h-4" />
-            <span>Staff Directory</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('departments')}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-              activeTab === 'departments'
-                ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Departments</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('designations')}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-              activeTab === 'designations'
-                ? 'bg-white dark:bg-slate-900 text-[#4e74f9] shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            <span>Designations</span>
-          </button>
+            <option value="">All Designations</option>
+            {STAFF_DESIGNATIONS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+
+          {/* Clear Filters Button */}
+          {(designationFilter || searchTerm) && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setDesignationFilter('');
+              }}
+              className="w-full sm:w-auto px-3 py-2 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 text-xs font-semibold transition"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
-      {activeTab === 'staff' && (
-        <div className="space-y-6">
-          {/* Filters & Actions */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-              <div>
-                <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
-                  Search Staff
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search by ID or Name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white outline-none text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
-                  Designation
-                </label>
-                <select
-                  value={designationFilter}
-                  onChange={(e) => setDesignationFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white text-sm"
-                >
-                  <option value="">All Designations</option>
-                  {designations.map((d) => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-slate-400 mb-1.5">
-                  Department
-                </label>
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-[#4e74f9] dark:bg-slate-800 dark:text-white text-sm"
-                >
-                  <option value="">All Departments</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-end gap-2">
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setDesignationFilter('');
-                    setDepartmentFilter('');
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium transition"
-                >
-                  Clear
-                </button>
-                <button
-                  onClick={handleAdd}
-                  className="flex-1 px-4 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Staff</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Staff Table */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
-                  <tr>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Staff ID</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Designation</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Department</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Leave Quota</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Phone</th>
-                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">DOB</th>
-                    <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {filteredStaff.map((staffMember) => (
-                    <tr key={staffMember.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.staffId}</td>
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{`${staffMember.firstName} ${staffMember.lastName}`}</td>
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.designation}</td>
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.department}</td>
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">
-                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 text-xs font-semibold">
-                          {staffMember.paidLeaveQuota ?? 15} Days
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.phone}</td>
-                      <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{staffMember.dob}</td>
-                      <td className="px-5 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => handleView(staffMember)}
-                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
-                            title="View Staff Profile"
-                            aria-label={`View details for ${staffMember.firstName} ${staffMember.lastName}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(staffMember)}
-                            className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
-                            title="Edit Staff Member"
-                            aria-label={`Edit ${staffMember.firstName} ${staffMember.lastName}`}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(staffMember.id)}
-                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
-                            title="Delete Staff Member"
-                            aria-label={`Delete ${staffMember.firstName} ${staffMember.lastName}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredStaff.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
-                        No staff records match the search filter.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'departments' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Departments Directory</h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Manage administrative and functional divisions</p>
-            </div>
-            <button
-              onClick={handleAddDept}
-              className="px-4 py-2 bg-[#4e74f9] text-white rounded-xl text-sm font-medium hover:bg-[#3d5fd8] transition flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Department</span>
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
-                <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Department ID</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
-                  <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+      {/* Staff Table */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
+              <tr>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Staff ID</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Staff Name</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Designation</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Phone Number</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Joining Date</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Leave Quota</th>
+                <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {filteredStaff.map((staffMember) => (
+                <tr key={staffMember.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
+                  <td className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white">{staffMember.staffId}</td>
+                  <td className="px-5 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                    {staffMember.firstName} {staffMember.lastName}
+                  </td>
+                  <td className="px-5 py-4 text-sm">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
+                      staffMember.designation === 'Administration'
+                        ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                        : staffMember.designation === 'Accounts'
+                        ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                    }`}>
+                      {staffMember.designation}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300">{staffMember.phone}</td>
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300">{formatDateDisplay(staffMember.joiningDate)}</td>
+                  <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300">
+                    <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 text-xs font-semibold">
+                      {staffMember.paidLeaveQuota ?? 15} Days
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        onClick={() => handleView(staffMember)}
+                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
+                        title="View Staff Profile"
+                        aria-label={`View details for ${staffMember.firstName} ${staffMember.lastName}`}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(staffMember)}
+                        className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
+                        title="Edit Staff Member"
+                        aria-label={`Edit ${staffMember.firstName} ${staffMember.lastName}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(staffMember.id)}
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
+                        title="Delete Staff Member"
+                        aria-label={`Delete ${staffMember.firstName} ${staffMember.lastName}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                {departments.map((dept) => (
-                  <tr key={dept.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{dept.id}</td>
-                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{dept.name}</td>
-                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{dept.description || '—'}</td>
-                    <td className="px-5 py-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleEditDept(dept)}
-                          className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
-                          title="Edit Department"
-                          aria-label={`Edit ${dept.name}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDept(dept.id)}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
-                          title="Delete Department"
-                          aria-label={`Delete ${dept.name}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {departments.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
-                      No departments found. Add one to get started.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'designations' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Designations Directory</h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Manage job roles and positions across staff</p>
-            </div>
-            <button
-              onClick={handleAddDesig}
-              className="px-4 py-2 bg-[#4e74f9] text-white rounded-xl text-sm font-medium hover:bg-[#3d5fd8] transition flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Designation</span>
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-700">
+              ))}
+              {filteredStaff.length === 0 && (
                 <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Designation ID</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
-                  <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                  <td colSpan={7} className="px-5 py-12 text-center text-sm text-gray-500 dark:text-slate-400">
+                    No staff records match the search filter.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                {designations.map((desig) => (
-                  <tr key={desig.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition">
-                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{desig.id}</td>
-                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{desig.name}</td>
-                    <td className="px-5 py-4 text-sm text-gray-700 dark:text-slate-300 font-normal">{desig.description || '—'}</td>
-                    <td className="px-5 py-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleEditDesig(desig)}
-                          className="p-1.5 text-gray-500 hover:text-[#4e74f9] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-lg transition"
-                          title="Edit Designation"
-                          aria-label={`Edit ${desig.name}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDesig(desig.id)}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-slate-800 rounded-lg transition"
-                          title="Delete Designation"
-                          aria-label={`Delete ${desig.name}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {designations.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
-                      No designations found. Add one to get started.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
       {/* Staff Add/Edit Modal */}
       {showModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
-            {/* Fixed Header */}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Modal Header */}
             <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {isEditing ? 'Edit Staff Profile' : 'Add New Staff Member'}
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  <span className="text-red-500 font-semibold">*</span> Indicates required field
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {isEditing ? 'Edit Staff Profile' : 'Add New Staff Member'}
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    {isEditing ? 'Update personnel information and designation' : 'Register a new administrative or accounts staff member'}
+                  </p>
+                </div>
               </div>
               <button
                 aria-label="Close dialog"
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -675,7 +444,7 @@ const StaffManagement: React.FC = () => {
                     type="text"
                     value={formData.firstName || ''}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
@@ -688,7 +457,7 @@ const StaffManagement: React.FC = () => {
                     type="text"
                     value={formData.lastName || ''}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
@@ -701,9 +470,24 @@ const StaffManagement: React.FC = () => {
                     type="date"
                     value={formData.dob || ''}
                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender || 'Male'}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
                 <div>
@@ -713,7 +497,7 @@ const StaffManagement: React.FC = () => {
                   <select
                     value={formData.bloodGroup || 'B+'}
                     onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                   >
                     {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
                   </select>
@@ -725,9 +509,10 @@ const StaffManagement: React.FC = () => {
                   </label>
                   <input
                     type="tel"
+                    placeholder="+91 98765 00000"
                     value={formData.emergencyContact || ''}
                     onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                   />
                 </div>
 
@@ -740,7 +525,7 @@ const StaffManagement: React.FC = () => {
                     placeholder="House/Apartment number, street name"
                     value={formData.houseAddress || ''}
                     onChange={(e) => setFormData({ ...formData, houseAddress: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
@@ -753,7 +538,7 @@ const StaffManagement: React.FC = () => {
                     type="text"
                     value={formData.city || ''}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
@@ -765,7 +550,7 @@ const StaffManagement: React.FC = () => {
                   <select
                     value={formData.state || 'Delhi'}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   >
                     {indianStates.map(st => (
@@ -782,47 +567,27 @@ const StaffManagement: React.FC = () => {
                     type="text"
                     value={formData.pinCode || ''}
                     onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
               </FormSection>
 
-              {/* Section 2: Role & Department */}
-              <FormSection title="Role & Department" icon={Briefcase}>
+              {/* Section 2: Role & Designation */}
+              <FormSection title="Role & Employment" icon={Briefcase}>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Designation <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={formData.designation || ''}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    value={formData.designation || 'Administration'}
+                    onChange={(e) => setFormData({ ...formData, designation: e.target.value as StaffDesignation })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   >
-                    <option value="">Select Designation</option>
-                    {designations.map((d) => (
-                      <option key={d.id} value={d.name}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                    Department <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.department || ''}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
-                    required
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.name}>
-                        {d.name}
+                    {STAFF_DESIGNATIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
                       </option>
                     ))}
                   </select>
@@ -836,7 +601,7 @@ const StaffManagement: React.FC = () => {
                     type="date"
                     value={formData.joiningDate || ''}
                     onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
@@ -851,7 +616,7 @@ const StaffManagement: React.FC = () => {
                     max={60}
                     value={formData.paidLeaveQuota ?? 15}
                     onChange={(e) => setFormData({ ...formData, paidLeaveQuota: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                   />
                 </div>
               </FormSection>
@@ -866,7 +631,7 @@ const StaffManagement: React.FC = () => {
                     type="tel"
                     value={formData.phone || ''}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
@@ -879,14 +644,14 @@ const StaffManagement: React.FC = () => {
                     type="email"
                     value={formData.email || ''}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]"
                     required
                   />
                 </div>
               </FormSection>
             </form>
 
-            {/* Fixed Footer */}
+            {/* Modal Footer */}
             <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
@@ -910,22 +675,27 @@ const StaffManagement: React.FC = () => {
 
       {/* Staff View Modal */}
       {showViewModal && currentStaff && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
-            {/* Fixed Header */}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+            {/* Modal Header */}
             <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {currentStaff.firstName} {currentStaff.lastName}
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Staff ID: {currentStaff.staffId} • {currentStaff.designation} ({currentStaff.department})
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {currentStaff.firstName} {currentStaff.lastName}
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                    Staff ID: {currentStaff.staffId} • {currentStaff.designation}
+                  </p>
+                </div>
               </div>
               <button
                 aria-label="Close dialog"
                 onClick={() => setShowViewModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -936,7 +706,8 @@ const StaffManagement: React.FC = () => {
               <StaffSection title="Personal Details" icon={User}>
                 <StaffDetail label="First Name">{currentStaff.firstName}</StaffDetail>
                 <StaffDetail label="Last Name">{currentStaff.lastName}</StaffDetail>
-                <StaffDetail label="Date of Birth">{currentStaff.dob}</StaffDetail>
+                <StaffDetail label="Date of Birth">{formatDateDisplay(currentStaff.dob)}</StaffDetail>
+                <StaffDetail label="Gender">{currentStaff.gender}</StaffDetail>
                 <StaffDetail label="Blood Group">{currentStaff.bloodGroup}</StaffDetail>
                 <StaffDetail label="Emergency Contact">{currentStaff.emergencyContact}</StaffDetail>
                 <StaffDetail label="House / Street Address" fullWidth>{currentStaff.houseAddress}</StaffDetail>
@@ -945,11 +716,10 @@ const StaffManagement: React.FC = () => {
                 <StaffDetail label="PIN Code">{currentStaff.pinCode}</StaffDetail>
               </StaffSection>
 
-              <StaffSection title="Role & Department" icon={Briefcase}>
+              <StaffSection title="Role & Employment" icon={Briefcase}>
                 <StaffDetail label="Designation">{currentStaff.designation}</StaffDetail>
-                <StaffDetail label="Department">{currentStaff.department}</StaffDetail>
-                <StaffDetail label="Joining Date">{currentStaff.joiningDate}</StaffDetail>
-                <StaffDetail label="Annual Leave Quota">{currentStaff.paidLeaveQuota ?? 15} Days / Year</StaffDetail>
+                <StaffDetail label="Joining Date">{formatDateDisplay(currentStaff.joiningDate)}</StaffDetail>
+                <StaffDetail label="Annual Paid Leave Quota">{currentStaff.paidLeaveQuota ?? 15} Days / Year</StaffDetail>
               </StaffSection>
 
               <StaffSection title="Contact Information" icon={Phone}>
@@ -958,155 +728,13 @@ const StaffManagement: React.FC = () => {
               </StaffSection>
             </div>
 
-            {/* Fixed Footer */}
+            {/* Modal Footer */}
             <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
               <button
                 onClick={() => setShowViewModal(false)}
                 className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-slate-700 transition"
               >
                 Close
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Department Modal */}
-      {showDeptModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {currentDeptId ? 'Edit Department' : 'Add Department'}
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  <span className="text-red-500 font-semibold">*</span> Indicates required field
-                </p>
-              </div>
-              <button
-                aria-label="Close dialog"
-                onClick={() => setShowDeptModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleDeptSubmit} id="dept-form" className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                  Department Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={deptForm.name}
-                  onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
-                  placeholder="e.g. Finance, Science Dept"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={deptForm.description}
-                  onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
-                  placeholder="Optional functional overview"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
-                />
-              </div>
-            </form>
-
-            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setShowDeptModal(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                form="dept-form"
-                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
-              >
-                Save Department
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Designation Modal */}
-      {showDesigModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
-            <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {currentDesigId ? 'Edit Designation' : 'Add Designation'}
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  <span className="text-red-500 font-semibold">*</span> Indicates required field
-                </p>
-              </div>
-              <button
-                aria-label="Close dialog"
-                onClick={() => setShowDesigModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleDesigSubmit} id="desig-form" className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                  Designation Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={desigForm.name}
-                  onChange={(e) => setDesigForm({ ...desigForm, name: e.target.value })}
-                  placeholder="e.g. Senior Lecturer, Registrar"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={desigForm.description}
-                  onChange={(e) => setDesigForm({ ...desigForm, description: e.target.value })}
-                  placeholder="Optional role description"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white outline-none text-sm focus:ring-2 focus:ring-[#4e74f9]/20 focus:border-[#4e74f9] dark:focus:border-blue-400 transition"
-                />
-              </div>
-            </form>
-
-            <div className="shrink-0 flex justify-end gap-3 p-5 border-t border-gray-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setShowDesigModal(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                form="desig-form"
-                className="px-5 py-2 bg-[#4e74f9] hover:bg-[#3d5fd8] text-white rounded-xl text-sm font-medium transition shadow-md shadow-blue-500/20"
-              >
-                Save Designation
               </button>
             </div>
           </div>
